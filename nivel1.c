@@ -3,7 +3,9 @@
 #include <string.h>
 
 #define LINE_PROMPT_SIZE 60
-#define COMMAND_LINE_SIZE 22
+
+#define COMMAND_LINE_SIZE 1024
+#define ARGS_SIZE 64
 
 #define RESET "\033[0m"
 #define NEGRO_T "\x1b[30m"
@@ -55,8 +57,10 @@ void imprimir_prompt(){
 
 
 int execute_line(char *line){
-
-};
+    char *args[ARGS_SIZE];
+    parse_args(**args, *line);
+    check_internal(**args);
+}
 
 int parse_args(char **args, char *line){
 char *sep = "\t\n\r ";
@@ -72,12 +76,47 @@ char *sep = "\t\n\r ";
         args[i] = strtok(NULL, sep);
     }
     return i;
-
 }
 
 
 int check_internal(char **args){
-
+    int retorno;
+    retorno = strcmp(args[0],"cd");//internal_cd() 
+    if (retorno == 0){
+        internal_cd(**args);
+        return true;
+    }
+    retorno = strcmp(args[0],"export");//internal_export()
+    if (retorno == 0){
+        internal_export(**args);
+        return true;
+    }
+    retorno = strcmp(args[0],"sourcoce");//internal_source() 
+    if (retorno == 0){
+        internal_source(**args);
+        return true;
+    }
+    retorno = strcmp(args[0],"jobs");//internal_jobs(),
+    if (retorno == 0){
+        internal_jobs(**args);
+        return true;
+    }
+    retorno = strcmp(args[0],"fg");//internal_fg()
+    if (retorno == 0){
+        internal_fg(**args);
+        return true;
+    }
+    retorno = strcmp(args[0],"bg");//internal_bg()
+    if (retorno == 0){
+        internal_bg(**args)
+        return true;
+    }
+    retorno = strcmp(args[0],"exit");// exit()
+    if (retorno == 0){
+        exit(0);
+        return true;
+    }
+    return false;
 }
 
 int internal_cd(char **args){

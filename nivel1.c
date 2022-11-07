@@ -59,6 +59,19 @@ int execute_line(char *line){
 };
 
 int parse_args(char **args, char *line){
+char *sep = "\t\n\r ";
+    *args = strtok(line, sep);
+    int i = 0;
+    while (args[i] != NULL)
+    {
+        if (*args[i] == '#')
+        {
+            args[i] = NULL;
+        }
+        i++;
+        args[i] = strtok(NULL, sep);
+    }
+    return i;
 
 }
 

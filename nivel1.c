@@ -21,13 +21,16 @@
 #define NEGRITA "\x1b[1m"
 
 char const PROMPT = '$';
+
+
 char *read_line(char *line){
     imprimir_prompt();
-    char str[COMMAND_LINE_SIZE];
     int n = COMMAND_LINE_SIZE;
 
-
-    char *linea = fgets(str,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
+    fflush(stdout);
+    char *linea = malloc(COMMAND_LINE_SIZE);
+  
+    linea = fgets(line,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
     if(linea == NULL && feof(stdin)){ //SI
         printf("\n \r");
         printf(GRIS_T "Se va ha cerrar la terminal\n");
@@ -36,13 +39,9 @@ char *read_line(char *line){
 
     if(linea != NULL){
         //Colocamos un \0 al final de la linea
-        for(int i = 0; i< COMMAND_LINE_SIZE; i++){
-            if(linea[i] == '\n'){
-                linea[i] == '\0';
-            }
-        }
+        int longitud = strlen(linea);
+        linea[longitud-1] = '\0'; //Ponemos a null la \n
     }
-
     return linea;
 }
 
@@ -51,22 +50,46 @@ void imprimir_prompt(){
     char *direccion = getenv("PWD");
 
     printf(ROJO_T "%s:" AZUL_T "%s" BLANCO_T "%c ", usuario, direccion, PROMPT); 
-    fflush(stdout);
+   
 }
 
 
 
 int execute_line(char *line){
-    char *args[ARGS_SIZE];
-    parse_args(**args, *line);
-    check_internal(**args);
+    printf("LInea de exec : %s", line);
+    char **args = malloc(ARGS_SIZE);
+    int num = parse_args(args, line);
+    printf("NUmero de tokens: %i", num);
+    int num2 = check_internal(args);
+    printf("ID comando : %i", num2);
+
 }
 
 int parse_args(char **args, char *line){
-char *sep = "\t\n\r ";
-    *args = strtok(line, sep);
+    printf("dsda");
+    char *sep = "\t\n\r ";
+    //char *sep = " ";
+    //*args = strtok(line, sep);
+    char *token = strtok(line,sep);
     int i = 0;
-    while (args[i] != NULL)
+
+    while (token != NULL)
+    {
+        
+        if (token[0] == '#')
+        {
+            args[i] = NULL;
+        }
+        args[i] = token;
+        i++;
+        token = strtok(NULL, sep);
+    }
+  
+    return i;
+}
+
+/**
+ *  while (args[i] != NULL)
     {
         if (*args[i] == '#')
         {
@@ -76,7 +99,7 @@ char *sep = "\t\n\r ";
         args[i] = strtok(NULL, sep);
     }
     return i;
-}
+*/
 
 
 int check_internal(char **args){
@@ -84,39 +107,39 @@ int check_internal(char **args){
     retorno = strcmp(args[0],"cd");//internal_cd() 
     if (retorno == 0){
         internal_cd(**args);
-        return true;
+        return 1;
     }
     retorno = strcmp(args[0],"export");//internal_export()
     if (retorno == 0){
         internal_export(**args);
-        return true;
+        return 1;
     }
-    retorno = strcmp(args[0],"sourcoce");//internal_source() 
+    retorno = strcmp(args[0],"source");//internal_source() 
     if (retorno == 0){
         internal_source(**args);
-        return true;
+        return 1;
     }
     retorno = strcmp(args[0],"jobs");//internal_jobs(),
     if (retorno == 0){
         internal_jobs(**args);
-        return true;
+        return 1;
     }
     retorno = strcmp(args[0],"fg");//internal_fg()
     if (retorno == 0){
         internal_fg(**args);
-        return true;
+        return 1;
     }
     retorno = strcmp(args[0],"bg");//internal_bg()
     if (retorno == 0){
-        internal_bg(**args)
-        return true;
+        internal_bg(**args);
+        return 1;
     }
     retorno = strcmp(args[0],"exit");// exit()
     if (retorno == 0){
         exit(0);
-        return true;
+        return 1;
     }
-    return false;
+    return 0;
 }
 
 int internal_cd(char **args){
@@ -124,23 +147,23 @@ int internal_cd(char **args){
 }
 
 int internal_export(char **args){
-    printf("Comando que nos permitirá cambiar de directorio");
+    printf("Comando que define una variable de entorno");
 }
 
 int internal_source(char **args){
-
+     printf("Comando que hace que un proceso se ejecute sin crear un hijo");
 }
 
 int internal_jobs(char **args){
-
+     printf("Comando que nos muestra los procesos resultantes de nuestro terminal ");
 }
 
 int internal_fg(char **args){
-
+     printf("Comando que mueve un proceso en segundo plano al primer plano");
 }
 
 int internal_bg(char **args){
-
+     printf("Comando que reanuda un proceso que esta suspendido en segundo plano");
 }
 
 

@@ -139,11 +139,49 @@ int check_internal(char **args){
 }
 
 int internal_cd(char **args){
-    printf("Comando que nos permitirá cambiar de directorio");
+    if(args[1] != NULL){
+        chdir(args[1]); //Cambiamos de dirección
+       
+       
+    }
+
+     return EXIT_SUCCESS;
+    /*else{ //En que no hay argumento en [1]
+        chdir(getenv("HOME"));
+        imprimir_prompt(); //Actualizamos el prompt
+        return EXIT_SUCCESS;
+    }*/
+
+
 }
 
 int internal_export(char **args){
-    printf("Comando que define una variable de entorno");
+   /*
+   
+    //Función que separa en tokens el argumento NOMBRE=VALOR
+    //Inicializamos las diferentes variables a utilizar
+     char *separacion = "=";
+    char *nombre;
+    char *valor;
+    //Primer token
+    nombre = strtok(args[1], separacion);
+    //Segundo token
+    valor = strtok(NULL, separacion);
+    printf("Variable Inicial: %s\n", getenv(nombre));
+    
+	//si sintaxis correcta
+    if (nombre && valor)
+    {
+		//se cambia el valor de la variable de entorno
+        setenv(nombre, valor, 1);
+        printf("Variable de entorno ACTUALIZADA: %s\n", getenv(nombre));
+    }
+    else
+    {
+        fprintf(stderr, "export: Sintaxis incorrecta\n");
+    }
+ */
+    return 1;
 }
 
 int internal_source(char **args){

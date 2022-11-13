@@ -1,8 +1,7 @@
+#define _POSIX_C_SOURCE 200112L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define LINE_PROMPT_SIZE 60
 
 #define COMMAND_LINE_SIZE 1024
 #define ARGS_SIZE 64
@@ -19,6 +18,7 @@
 #define CYAN_T "\x1b[36m"
 #define BLANCO_T "\x1b[97m"
 #define NEGRITA "\x1b[1m"
+#define DEBUGN1 true
 
 char const PROMPT = '$';
 

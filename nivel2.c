@@ -102,32 +102,32 @@ int check_internal(char **args){
     int retorno;
     retorno = strcmp(args[0],"cd");//internal_cd() 
     if (retorno == 0){
-        internal_cd(**args);
+        internal_cd(args);
         return 1;
     }
     retorno = strcmp(args[0],"export");//internal_export()
     if (retorno == 0){
-        internal_export(**args);
+        internal_export(args);
         return 1;
     }
     retorno = strcmp(args[0],"source");//internal_source() 
     if (retorno == 0){
-        internal_source(**args);
+        internal_source(args);
         return 1;
     }
     retorno = strcmp(args[0],"jobs");//internal_jobs(),
     if (retorno == 0){
-        internal_jobs(**args);
+        internal_jobs(args);
         return 1;
     }
     retorno = strcmp(args[0],"fg");//internal_fg()
     if (retorno == 0){
-        internal_fg(**args);
+        internal_fg(args);
         return 1;
     }
     retorno = strcmp(args[0],"bg");//internal_bg()
     if (retorno == 0){
-        internal_bg(**args);
+        internal_bg(args);
         return 1;
     }
     retorno = strcmp(args[0],"exit");// exit()
@@ -141,46 +141,49 @@ int check_internal(char **args){
 int internal_cd(char **args){
     if(args[1] != NULL){
         chdir(args[1]); //Cambiamos de dirección
-       
-       
+        
+        //A modo de test
+        char *dir = malloc(COMMAND_LINE_SIZE);
+        getcwd(dir, COMMAND_LINE_SIZE);
+        printf(GRIS_T "DIreccion actual: %s \n", dir);
+
+        //Actualizamos el prompt PWD->dirección actual
+        setenv("PWD", dir,1);
     }
 
      return EXIT_SUCCESS;
-    /*else{ //En que no hay argumento en [1]
-        chdir(getenv("HOME"));
-        imprimir_prompt(); //Actualizamos el prompt
-        return EXIT_SUCCESS;
-    }*/
-
-
 }
 
 int internal_export(char **args){
-   /*
+   
    
     //Función que separa en tokens el argumento NOMBRE=VALOR
     //Inicializamos las diferentes variables a utilizar
      char *separacion = "=";
     char *nombre;
     char *valor;
+
+    if(args[1] == NULL){ //EN el caso de que no se le pase la variable a actualizar
+        fprintf(stderr, ROJO_T "export: Sintaxis incorrecta\n");
+        return 1;
+    }
+    
     //Primer token
     nombre = strtok(args[1], separacion);
     //Segundo token
     valor = strtok(NULL, separacion);
-    printf("Variable Inicial: %s\n", getenv(nombre));
+    
+    printf(GRIS_T "Variable Inicial: %s\n", getenv(nombre));
     
 	//si sintaxis correcta
-    if (nombre && valor)
-    {
+    if (nombre && valor){
 		//se cambia el valor de la variable de entorno
         setenv(nombre, valor, 1);
-        printf("Variable de entorno ACTUALIZADA: %s\n", getenv(nombre));
+        printf(GRIS_T "Variable de entorno ACTUALIZADA: %s\n", getenv(nombre));
+    }else{
+        fprintf(stderr, ROJO_T "export: Sintaxis incorrecta\n");
     }
-    else
-    {
-        fprintf(stderr, "export: Sintaxis incorrecta\n");
-    }
- */
+ 
     return 1;
 }
 

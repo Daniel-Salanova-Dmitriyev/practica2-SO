@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 
 #define LINE_PROMPT_SIZE 60
 
@@ -58,8 +59,25 @@ void imprimir_prompt(){
 int execute_line(char *line){
     char **args = malloc(ARGS_SIZE);
     parse_args(args, line);
-    check_internal(args);
 
+    if (check_internal(args) == 0){
+        pid_t fork(args);
+        if (execvp(args[0], args) != NULL){
+            stderr("La ejecución del comando ha fallado");
+            exit(-1);
+        }
+    }
+    jobs_list[0].status = "E";
+    jobs_list[0].cmd = line;   
+
+    pid_t wait(&"E");
+    if (WIFEXITED("E")){
+        WEXITSTATUS("E");
+    } else {
+        WIFSIGNALED("E");
+        WTERMSIG("E");
+    }
+    jobs_list[0].pid = 0;
 }
 
 int parse_args(char **args, char *line){

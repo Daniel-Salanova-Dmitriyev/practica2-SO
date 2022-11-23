@@ -171,13 +171,16 @@ int internal_export(char **args){
     //Primer token
     nombre = strtok(args[1], separacion);
     //Segundo token
-    valor = strtok(NULL, separacion);
+    valor = strtok(NULL, "");
+    printf("NOMbre: %s",nombre);
+    printf("Valor: %s", valor);
     
-    printf(GRIS_T "Variable Inicial: %s\n", getenv(nombre));
+  
     
 	//si sintaxis correcta
     if (nombre && valor){
 		//se cambia el valor de la variable de entorno
+        printf(GRIS_T "Variable de entonro ORIGINAL: %s\n", getenv(nombre));
         setenv(nombre, valor, 1);
         printf(GRIS_T "Variable de entorno ACTUALIZADA: %s\n", getenv(nombre));
     }else{

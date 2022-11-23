@@ -242,8 +242,43 @@ int internal_export(char **args){
     return 1;
 }
 
-int internal_source(char **args){
-     printf("Comando que hace que un proceso se ejecute sin crear un hijo");
+//implementacion de la funcion internal source
+int internal_source(char **args)
+{
+    char *nombre = args[1];
+    char *linea = malloc(COMMAND_LINE_SIZE);
+    //Comprobamos que haya un nombre
+    if (nombre!=NULL)
+    {
+        //abrimos el fichero con el nombre
+        FILE *archivo;
+        archivo = fopen(nombre, "r");
+        //Comprobamos si es NULL en tal caso seria error
+        if (archivo==NULL)
+        {
+
+            fprintf(stderr, "source: Sintaxis incorrecta\n");
+            
+        }
+        //caso contrario
+        else
+        {
+            //leemos el fichero mientras no llegues al final o haya error seguira leyendo
+            while (fgets(linea, COMMAND_LINE_SIZE, archivo)!=NULL)
+            {
+                //antes de ejecutar la linea 
+                //realizamos un fflush del stream del archivo
+                fflush(archivo);
+		    //ejecutamos la linea leida
+                execute_line(linea);
+            }
+            fclose(archivo);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "source: Sintaxis incorrecta\n");
+    }
 }
 
 int internal_jobs(char **args){

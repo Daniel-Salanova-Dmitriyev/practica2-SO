@@ -19,18 +19,121 @@
 #define CYAN_T "\x1b[36m"
 #define BLANCO_T "\x1b[97m"
 #define NEGRITA "\x1b[1m"
+#define DEBUGN1 0
+#define DEBUGN2 1
 
 char const PROMPT = '$';
 
+int chdir(const char *path); 
+long getcwd(char *buf, unsigned long size);
+
+int internal_cd(char **args){
+    if(args[1] != NULL){
+        chdir(args[1]); //Cambiamos de dirección
+        
+        //A modo de test
+        char dir[COMMAND_LINE_SIZE];
+        if(getcwd(dir, COMMAND_LINE_SIZE)) {
+            #if DEBUGN2
+                printf(GRIS_T "DIreccion actual: %s \n", dir);
+            #endif
+        }
+        //Actualizamos el prompt PWD->dirección actual
+        setenv("PWD", dir,1);
+    }
+
+     return EXIT_SUCCESS;
+}
+
+int internal_export(char **args){
+   
+   
+    //Función que separa en tokens el argumento NOMBRE=VALOR
+    //Inicializamos las diferentes variables a utilizar
+     char *separacion = "=";
+    char *nombre;
+    char *valor;
+
+    if(args[1] == NULL){ //EN el caso de que no se le pase la variable a actualizar
+        fprintf(stderr, ROJO_T "export: Sintaxis incorrecta\n");
+        return 1;
+    }
+    
+    //Primer token
+    nombre = strtok(args[1], separacion);
+    //Segundo token
+    valor = strtok(NULL, "");
+
+
+    #if DEBUGN2
+        printf("NOMbre: %s\n",nombre);
+        printf("Valor: %s\n", valor);
+    #endif
+  
+	//si sintaxis correcta
+    if (nombre && valor){
+		//se cambia el valor de la variable de entorno
+        #if DEBUGN2
+            printf(GRIS_T "Variable de entonro ORIGINAL: %s\n", getenv(nombre));
+        #endif
+        setenv(nombre, valor, 1);
+
+        #if DEBUGN2
+            printf(GRIS_T "Variable de entorno ACTUALIZADA: %s\n", getenv(nombre));
+        #endif
+    }else{
+        fprintf(stderr, ROJO_T "export: Sintaxis incorrecta\n");
+    }
+ 
+    return 1;
+}
+
+int internal_source(char **args){
+    #if DEBUGN1
+        printf("Comando que hace que un proceso se ejecute sin crear un hijo");
+    #endif
+    return 1;
+}
+
+int internal_jobs(char **args){
+    #if DEBUGN1
+        printf("Comando que nos muestra los procesos resultantes de nuestro terminal ");
+    #endif
+    return 1;
+}
+
+int internal_fg(char **args){
+    #if DEBUGN1
+        printf("Comando que mueve un proceso en segundo plano al primer plano");
+    #endif
+    return 1;
+}
+
+int internal_bg(char **args){
+    #if DEBUGN1
+        printf("Comando que reanuda un proceso que esta suspendido en segundo plano");
+    #endif
+    return 1;
+}
+
+void imprimir_prompt(){
+    char *usuario = getenv("USER");
+    char *direccion = getenv("PWD");
+
+    printf(ROJO_T "%s:" AZUL_T "%s" BLANCO_T "%c ", usuario, direccion, PROMPT); 
+   
+}
 
 char *read_line(char *line){
     imprimir_prompt();
     int n = COMMAND_LINE_SIZE;
 
-    fflush(stdout);
-    char *linea = malloc(COMMAND_LINE_SIZE);
+   
+    char *linea;
+    
   
     linea = fgets(line,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
+    fflush(stdout);
     if(linea == NULL && feof(stdin)){ //SI
         printf("\n \r");
         printf(GRIS_T "Se va ha cerrar la terminal\n");
@@ -44,58 +147,6 @@ char *read_line(char *line){
     }
     return linea;
 }
-
-void imprimir_prompt(){
-    char *usuario = getenv("USER");
-    char *direccion = getenv("PWD");
-
-    printf(ROJO_T "%s:" AZUL_T "%s" BLANCO_T "%c ", usuario, direccion, PROMPT); 
-   
-}
-
-
-
-int execute_line(char *line){
-    char **args = malloc(ARGS_SIZE);
-    parse_args(args, line);
-    check_internal(args);     
-}
-
-int parse_args(char **args, char *line){
-    char *sep = "\t\n\r ";
-    //char *sep = " ";
-    //*args = strtok(line, sep);
-    char *token = strtok(line,sep);
-    int i = 0;
-
-    while (token != NULL)
-    {
-        
-        if (token[0] == '#')
-        {
-            args[i] = NULL;
-        }
-        args[i] = token;
-        i++;
-        token = strtok(NULL, sep);
-    }
-  
-    return i;
-}
-
-/**
- *  while (args[i] != NULL)
-    {
-        if (*args[i] == '#')
-        {
-            args[i] = NULL;
-        }
-        i++;
-        args[i] = strtok(NULL, sep);
-    }
-    return i;
-*/
-
 
 int check_internal(char **args){
     int retorno;
@@ -137,76 +188,36 @@ int check_internal(char **args){
     return 0;
 }
 
-int internal_cd(char **args){
-    if(args[1] != NULL){
-        chdir(args[1]); //Cambiamos de dirección
+
+
+int parse_args(char **args, char *line){
+    char *sep = "\t\n\r ";
+    //char *sep = " ";
+    //*args = strtok(line, sep);
+    char *token = strtok(line,sep);
+    int i = 0;
+
+    while (token != NULL)
+    {
         
-        //A modo de test
-        char *dir = malloc(COMMAND_LINE_SIZE);
-        getcwd(dir, COMMAND_LINE_SIZE);
-        printf(GRIS_T "DIreccion actual: %s \n", dir);
-
-        //Actualizamos el prompt PWD->dirección actual
-        setenv("PWD", dir,1);
+        if (token[0] == '#')
+        {
+            args[i] = NULL;
+        }
+        args[i] = token;
+        i++;
+        token = strtok(NULL, sep);
     }
-
-     return EXIT_SUCCESS;
-}
-
-int internal_export(char **args){
-   
-   
-    //Función que separa en tokens el argumento NOMBRE=VALOR
-    //Inicializamos las diferentes variables a utilizar
-     char *separacion = "=";
-    char *nombre;
-    char *valor;
-
-    if(args[1] == NULL){ //EN el caso de que no se le pase la variable a actualizar
-        fprintf(stderr, ROJO_T "export: Sintaxis incorrecta\n");
-        return 1;
-    }
-    
-    //Primer token
-    nombre = strtok(args[1], separacion);
-    //Segundo token
-    valor = strtok(NULL, "");
-    printf("NOMbre: %s",nombre);
-    printf("Valor: %s", valor);
-    
   
-    
-	//si sintaxis correcta
-    if (nombre && valor){
-		//se cambia el valor de la variable de entorno
-        printf(GRIS_T "Variable de entonro ORIGINAL: %s\n", getenv(nombre));
-        setenv(nombre, valor, 1);
-        printf(GRIS_T "Variable de entorno ACTUALIZADA: %s\n", getenv(nombre));
-    }else{
-        fprintf(stderr, ROJO_T "export: Sintaxis incorrecta\n");
-    }
- 
-    return 1;
+    return i;
 }
 
-int internal_source(char **args){
-     printf("Comando que hace que un proceso se ejecute sin crear un hijo");
+int execute_line(char *line){
+    char **args = malloc(ARGS_SIZE);
+    parse_args(args, line);
+    check_internal(args);  
+    free(args);   
 }
-
-int internal_jobs(char **args){
-     printf("Comando que nos muestra los procesos resultantes de nuestro terminal ");
-}
-
-int internal_fg(char **args){
-     printf("Comando que mueve un proceso en segundo plano al primer plano");
-}
-
-int internal_bg(char **args){
-     printf("Comando que reanuda un proceso que esta suspendido en segundo plano");
-}
-
-
-
 
 /**
  * MAIN PROVISIONAL
@@ -217,6 +228,7 @@ void main(){
         if(read_line(line)){
             execute_line(line);
         }
+
     }
     
 }

@@ -79,10 +79,11 @@ char *read_line(char *line){
     imprimir_prompt();
     int n = COMMAND_LINE_SIZE;
 
-    fflush(stdout);
-    char *linea = malloc(COMMAND_LINE_SIZE);
+    
+    char *linea;
   
     linea = fgets(line,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
+    fflush(stdout);
     if(linea == NULL && feof(stdin)){ //SI
         printf("\n \r");
         printf(GRIS_T "Se va ha cerrar la terminal\n");
@@ -168,7 +169,7 @@ int execute_line(char *line){
     parse_args(args, line);
    
     check_internal(args);
-    free(line); //liberamos el espacio alojado por la linea
+   
     free(args); //LIberamos el espacio alojado por los argumentos
 
 }
@@ -183,6 +184,7 @@ void main(){
         if(read_line(line)){
             execute_line(line);
         }
+         free(line); //liberamos el espacio alojado por la linea
     }
     
 }

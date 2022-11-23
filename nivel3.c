@@ -7,6 +7,7 @@
 
 #define COMMAND_LINE_SIZE 1024
 #define ARGS_SIZE 64
+#define N_JOBS 64
 
 #define RESET "\033[0m"
 #define NEGRO_T "\x1b[30m"
@@ -23,13 +24,21 @@
 
 char const PROMPT = '$';
 
+struct info_job {
+   pid_t pid;
+   char status; // ‘N’, ’E’, ‘D’, ‘F’ (‘N’: ninguno, ‘E’: Ejecutándose y ‘D’: Detenido, ‘F’: Finalizado) 
+   char cmd[COMMAND_LINE_SIZE]; // línea de comando asociada
+};
+
+static struct info_job jobs_list [N_JOBS];
+static char mi_shell[COMMAND_LINE_SIZE];
 
 char *read_line(char *line){
     imprimir_prompt();
     int n = COMMAND_LINE_SIZE;
 
     fflush(stdout);
-    char *linea = malloc(COMMAND_LINE_SIZE);
+    char *linea;
   
     linea = fgets(line,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
     if(linea == NULL && feof(stdin)){ //SI
@@ -78,6 +87,7 @@ int execute_line(char *line){
         WTERMSIG("E");
     }
     jobs_list[0].pid = 0;
+    free(args);
 }
 
 int parse_args(char **args, char *line){
@@ -227,7 +237,27 @@ int internal_bg(char **args){
 /**
  * MAIN PROVISIONAL
 */
-void main(){
+void main(int argc, char *argv[]){
+    //Primer proceso
+    struct info_job proceso;
+    strcpy(proceso.cmd, '\0');
+    proceso.pid = 0;
+    strcpy(proceso.status, 'N');
+
+    //Inicializamos el job_list (?)
+    jobs_list[0] = proceso;
+
+    //Recogemos el nombre
+    strcpy(mi_shell, argv[0]);
+    int i = 0;
+    while (mi_shell[i])
+    {
+        i++;
+    }
+    //añadimos un salto de linea al final
+    mi_shell[i] = '\n';
+
+
     char line[COMMAND_LINE_SIZE];
     while(1){
         if(read_line(line)){

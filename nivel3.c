@@ -70,52 +70,31 @@ int execute_line(char *line){
     parse_args(args, line);
 
     if (check_internal(args) == 0){
-        pid_t fork(args);
-        if (execvp(args[0], args) != NULL){
+        pid_t fork(args);//se crea un hijo con fork()
+        if (execvp(args[0], args) != NULL){//ejecutar el comando externo solicitado. 
             perror("La ejecución del comando ha fallado");
             exit(-1);
         }
     }
-    jobs_list[0].status = "E";
-    strcpy(jobs_list[0].cmd, line);  
+    //Actualizar los datos de jobs_list[0]    
+    memset(jobs_list[0].cmd,line,sizeof(char));
+    jobs_list[0].status= 'E';
 
-    pid_t wait(&"E");
-    if (WIFEXITED("E")){
-        WEXITSTATUS("E");
+    pid_t PID_status;
+    //Esperar con wait()
+    wait(&PID_status);
+    if (WIFEXITED(PID_status)){
+        WEXITSTATUS(PID_status);
     } else {
-        WIFSIGNALED("E");
-        WTERMSIG("E");
+        WIFSIGNALED(PID_status);
+        WTERMSIG(PID_status);
     }
+    //Resetear todos los datos de jobs_list[0]
+    //memset(proceso->cmd,'\0',sizeof(char));
     jobs_list[0].pid = 0;
-    free(args);
+    //proceso->status= 'N';
+    //free(args);
 }
-
-
-/*
-
- char **args = malloc(ARGS_SIZE);
-    parse_args(args, line);
-
-    if (check_internal(args) == 0){
-        pid_t fork(args);
-        if (execvp(args[0], args) != NULL){
-            stderr("La ejecución del comando ha fallado");
-            exit(-1);
-        }
-    }
-    jobs_list[0].status = "E";
-    jobs_list[0].cmd = line;   
-
-    pid_t wait(&"E");
-    if (WIFEXITED("E")){
-        WEXITSTATUS("E");
-    } else {
-        WIFSIGNALED("E");
-        WTERMSIG("E");
-    }
-    jobs_list[0].pid = 0;
-    free(args);
-*/
 
 int parse_args(char **args, char *line){
     char *sep = "\t\n\r ";

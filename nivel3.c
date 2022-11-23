@@ -72,6 +72,33 @@ int execute_line(char *line){
     if (check_internal(args) == 0){
         pid_t fork(args);
         if (execvp(args[0], args) != NULL){
+            perror("La ejecución del comando ha fallado");
+            exit(-1);
+        }
+    }
+    jobs_list[0].status = "E";
+    strcpy(jobs_list[0].cmd, line);  
+
+    pid_t wait(&"E");
+    if (WIFEXITED("E")){
+        WEXITSTATUS("E");
+    } else {
+        WIFSIGNALED("E");
+        WTERMSIG("E");
+    }
+    jobs_list[0].pid = 0;
+    free(args);
+}
+
+
+/*
+
+ char **args = malloc(ARGS_SIZE);
+    parse_args(args, line);
+
+    if (check_internal(args) == 0){
+        pid_t fork(args);
+        if (execvp(args[0], args) != NULL){
             stderr("La ejecución del comando ha fallado");
             exit(-1);
         }
@@ -88,7 +115,7 @@ int execute_line(char *line){
     }
     jobs_list[0].pid = 0;
     free(args);
-}
+*/
 
 int parse_args(char **args, char *line){
     char *sep = "\t\n\r ";
@@ -238,15 +265,16 @@ int internal_bg(char **args){
  * MAIN PROVISIONAL
 */
 void main(int argc, char *argv[]){
+    
     //Primer proceso
-    struct info_job proceso;
-    strcpy(proceso.cmd, '\0');
-    proceso.pid = 0;
-    strcpy(proceso.status, 'N');
+    struct info_job *proceso = malloc(sizeof(struct info_job));
+    memset(proceso->cmd,'\0',sizeof(char));
+    proceso->pid = 0;
+    proceso->status= 'N';
 
-    //Inicializamos el job_list (?)
-    jobs_list[0] = proceso;
-
+    //Inicializamos el job_list 
+    jobs_list[0] = *proceso;
+    
     //Recogemos el nombre
     strcpy(mi_shell, argv[0]);
     int i = 0;
@@ -256,6 +284,8 @@ void main(int argc, char *argv[]){
     }
     //añadimos un salto de linea al final
     mi_shell[i] = '\n';
+    
+    
 
 
     char line[COMMAND_LINE_SIZE];

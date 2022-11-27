@@ -289,7 +289,33 @@ void reaper(int signum){
 
 
 void ctrlc(int signum){
+    signal(SIGINT,ctrlc); //Escuchamos si se pulsa ctrlc
 
+    if(jobs_list[0].pid > 0){ //Hay un proceso en ejecución
+        if(!strcmp(jobs_list[0].cmd,mi_shell)){
+            
+            if(kill(jobs_list[0].pid,SIGTERM)){ //mandamos a acabar dicho proceso
+                #if DEBUGN4
+                    printf("Se ha enviado señal SIGTERM\n");
+                #endif
+            }else{
+                perror("kill");
+                exit(-1);
+            } 
+            
+            printf("\n");
+            fflush(stdout);
+
+        }else{
+            #if DEBUGN4
+                printf(ROJO_T"No se puede cerrar el proceso ya que es el minishell");
+            #endif
+        }
+    }else{
+            #if DEBUGN4
+                printf(ROJO_T"No hay ningún proceso en foreground");
+            #endif
+    } 
 }
 
 

@@ -42,6 +42,147 @@ struct info_job {
 static struct info_job jobs_list [N_JOBS];
 static char mi_shell[COMMAND_LINE_SIZE];
 
+<<<<<<< HEAD
+=======
+char *read_line(char *line){
+    imprimir_prompt();
+    int n = COMMAND_LINE_SIZE;
+
+    fflush(stdout);
+    char *linea;
+  
+    linea = fgets(line,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
+    if(linea == NULL && feof(stdin)){ //SI
+        printf("\n \r");
+        printf(GRIS_T "Se va ha cerrar la terminal\n");
+        exit(0);
+    }
+
+    if(linea != NULL){
+        //Colocamos un \0 al final de la linea
+        int longitud = strlen(linea);
+        linea[longitud-1] = '\0'; //Ponemos a null la \n
+    }
+    return linea;
+}
+
+void imprimir_prompt(){
+    char *usuario = getenv("USER");
+    char *direccion = getenv("PWD");
+
+    printf(ROJO_T "%s:" AZUL_T "%s" BLANCO_T "%c ", usuario, direccion, PROMPT); 
+   
+}
+
+
+
+int execute_line(char *line){
+    char **args = malloc(ARGS_SIZE);
+    parse_args(args, line);
+
+    if (check_internal(args) == 0){
+        pid_t fork(args);//se crea un hijo con fork()
+        if (execvp(args[0], args) != NULL){//ejecutar el comando externo solicitado. 
+            perror("La ejecución del comando ha fallado");
+            exit(-1);
+        }
+    }
+    //Actualizar los datos de jobs_list[0]    
+    memset(jobs_list[0].cmd,line,sizeof(char));
+    jobs_list[0].status= 'E';
+
+    pid_t PID_status;
+    //Esperar con wait()
+    wait(&PID_status);
+    if (WIFEXITED(PID_status)){
+        WEXITSTATUS(PID_status);
+    } else {
+        WIFSIGNALED(PID_status);
+        WTERMSIG(PID_status);
+    }
+    //Resetear todos los datos de jobs_list[0]
+    //memset(proceso->cmd,'\0',sizeof(char));
+    jobs_list[0].pid = 0;
+    //proceso->status= 'N';
+    //free(args);
+}
+
+int parse_args(char **args, char *line){
+    char *sep = "\t\n\r ";
+    //char *sep = " ";
+    //*args = strtok(line, sep);
+    char *token = strtok(line,sep);
+    int i = 0;
+
+    while (token != NULL)
+    {
+        
+        if (token[0] == '#')
+        {
+            args[i] = NULL;
+        }
+        args[i] = token;
+        i++;
+        token = strtok(NULL, sep);
+    }
+  
+    return i;
+}
+
+/**
+ *  while (args[i] != NULL)
+    {
+        if (*args[i] == '#')
+        {
+            args[i] = NULL;
+        }
+        i++;
+        args[i] = strtok(NULL, sep);
+    }
+    return i;
+*/
+
+
+int check_internal(char **args){
+    int retorno;
+    retorno = strcmp(args[0],"cd");//internal_cd() 
+    if (retorno == 0){
+        internal_cd(args);
+        return 1;
+    }
+    retorno = strcmp(args[0],"export");//internal_export()
+    if (retorno == 0){
+        internal_export(args);
+        return 1;
+    }
+    retorno = strcmp(args[0],"source");//internal_source() 
+    if (retorno == 0){
+        internal_source(args);
+        return 1;
+    }
+    retorno = strcmp(args[0],"jobs");//internal_jobs(),
+    if (retorno == 0){
+        internal_jobs(args);
+        return 1;
+    }
+    retorno = strcmp(args[0],"fg");//internal_fg()
+    if (retorno == 0){
+        internal_fg(args);
+        return 1;
+    }
+    retorno = strcmp(args[0],"bg");//internal_bg()
+    if (retorno == 0){
+        internal_bg(args);
+        return 1;
+    }
+    retorno = strcmp(args[0],"exit");// exit()
+    if (retorno == 0){
+        exit(0);
+        return 1;
+    }
+    return 0;
+}
+>>>>>>> 3f54c43dfa47cd4937595189b0a215f441017ed3
 
 int internal_cd(char **args){
     if(args[1] != NULL){

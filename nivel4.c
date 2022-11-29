@@ -250,6 +250,12 @@ int execute_line(char *line){
             jobs_list[0].status = 'E';
             jobs_list[0].pid = pid;
             strcpy(jobs_list[0].cmd,line);
+		
+	    signal(SIGINT, ctrlc);//Asociar el manejador ctrlc a la señal SIGINT.
+            while(jobs_list[0].pid  > 0){//Esperando al hijo
+                 pause();
+            }
+		
             #if DEBUGN3
                 printf(GRIS_T "Proceso hijo: %d\n", pid);
                 printf(GRIS_T"Proceso padre: %d\n", getpid());
@@ -267,15 +273,14 @@ int execute_line(char *line){
             
         }else{ //hijo
             execvp(args[0],args); //Ejecutamos el comando
-            perror("No se encontró la orden");
+            if (execvp(args[0], args) != NULL){//ejecutar el comando externo solicitado. 
+            perror("La ejecución del comando ha fallado");
             exit(-1);
+            }
+       	    kill(fork(args), SIGCHLD);//Asociar la acción por defecto a SIGCHLD.
+       	    signal(SIGINT, SIG_IGN);//Ingnoramos SIGINT
         }
-
-
-
     }
-
-
     free(args); 
 }
 

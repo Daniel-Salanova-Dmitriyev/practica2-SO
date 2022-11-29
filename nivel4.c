@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h>
+#include <sys/wait.h
+#include <signal.h>
+#include <sys/types.h>
 
 #define LINE_PROMPT_SIZE 60
 

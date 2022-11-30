@@ -289,11 +289,31 @@ int execute_line(char *line){
 
 
 
-
-void reaper(int signum){
-
+//manejador para la señal SIGCHLD
+void reaper()
+{
+    signal(SIGCHLD, reaper);
+    int status;
+    pid_t pid;
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+    {
+        //si es primer plano
+        if (pid == jobs_list[0].pid)
+        {
+            
+                // 
+                jobs_list[0].pid = 0;
+                jobs_list[0].status = 'F';
+                strcpy(jobs_list[0].cmd, "\0");
+            //si es segundo plano
+        } else
+        {
+            int i = jobs_list_find(pid);
+            fprintf(stderr, "El pid del proceso terminado %d y el estatus es %d\n", jobs_list[i].pid, status);
+        
+        }
+    }
 }
-
 
 void ctrlc(int signum){
     signal(SIGINT,ctrlc); //Escuchamos si se pulsa ctrlc

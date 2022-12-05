@@ -248,7 +248,7 @@ int execute_line(char *line){
         pid_t pid;
         pid = fork(); //Creamos un hijo
         if(pid > 0){ //padre
-            if(is_background(**args)==0){
+            if(is_background(**args)==0){//comando foreground
                 jobs_list[0].status = 'E';
                 jobs_list[0].pid = pid;
                 strcpy(jobs_list[0].cmd,line);
@@ -272,7 +272,7 @@ int execute_line(char *line){
                 jobs_list[0].status = 'N';
                 jobs_list[0].pid = 0;
                 memset(jobs_list[0].cmd,'\0',sizeof(char));
-            }else if(is_background(**args)==1){
+            }else if(is_background(**args)==1){//comando background
                 jobs_list_add(jobs_list[0].pid, jobs_list[0].status, *jobs_list[0].cmd);
             }   
         }else{ //hijo

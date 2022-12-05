@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h
+#include <sys/wait.h>
 #include <signal.h>
 #include <sys/types.h>
 
@@ -240,76 +240,29 @@ int parse_args(char **args, char *line){
     return i;
 }
 
-int execute_line(char *line){
-    char **args = malloc(ARGS_SIZE);
-    parse_args(args, line);
-    int internal = check_internal(args);  
-
-    if(!internal){ //si no es interno 
-        pid_t pid;
-        pid = fork(); //Creamos un hijo
-        if(pid > 0){ //padre
-            jobs_list[0].status = 'E';
-            jobs_list[0].pid = pid;
-            strcpy(jobs_list[0].cmd,line);
-		
-	    signal(SIGINT, ctrlc);//Asociar el manejador ctrlc a la señal SIGINT.
-            while(jobs_list[0].pid  > 0){//Esperando al hijo
-                 pause();
-            }
-		
-            #if DEBUGN3
-                printf(GRIS_T "Proceso hijo: %d\n", pid);
-                printf(GRIS_T"Proceso padre: %d\n", getpid());
-                printf(GRIS_T"Terminal: %s , y comando: %s\n", mi_shell,line);
-            #endif
-            pid_t estado_hijo;
-            wait(&estado_hijo); //Esperamos la finalización del proceso
-            #if DEBUGN3
-                printf(GRIS_T"Estado de finalizacion del hijo: %i\n",estado_hijo);
-            #endif
-            //Devolvemos los valores de la primera entrada al por defecto establecido
-            jobs_list[0].status = 'N';
-            jobs_list[0].pid = 0;
-            memset(jobs_list[0].cmd,'\0',sizeof(char));
-            
-        }else{ //hijo
-            execvp(args[0],args); //Ejecutamos el comando
-            if (execvp(args[0], args) != NULL){//ejecutar el comando externo solicitado. 
-            perror("La ejecución del comando ha fallado");
-            exit(-1);
-            }
-       	    kill(fork(args), SIGCHLD);//Asociar la acción por defecto a SIGCHLD.
-       	    signal(SIGINT, SIG_IGN);//Ingnoramos SIGINT
-        }
-    }
-    free(args); 
-}
-
-
 
 
 //manejador para la señal SIGCHLD
-void reaper()
+void reaper(int signum)
 {
+    
     signal(SIGCHLD, reaper);
     int status;
-    pid_t pid;
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
+    pid_t ended;
+    while ((ended = waitpid(-1, &status, WNOHANG)) > 0)
     {
-        //si es primer plano
-        if (pid == jobs_list[0].pid)
-        {
+        printf("Poceso hijo dentro de reaper: %i \n",ended);
+        if (ended == jobs_list[0].pid){
             
-                // 
-                jobs_list[0].pid = 0;
-                jobs_list[0].status = 'F';
-                strcpy(jobs_list[0].cmd, "\0");
-            //si es segundo plano
-        } else
-        {
-            int i = jobs_list_find(pid);
-            fprintf(stderr, "El pid del proceso terminado %d y el estatus es %d\n", jobs_list[i].pid, status);
+            //Actualizamos los valores del primer proceso 
+            jobs_list[0].pid = 0;
+            jobs_list[0].status = 'F';
+            strcpy(jobs_list[0].cmd, "\0");
+            printf("El pid del proceso terminado %d y el estatus es %d\n", ended, status);
+
+            
+        } else{     
+            printf("El proceso no esta en primer plano\n");
         
         }
     }
@@ -319,14 +272,15 @@ void ctrlc(int signum){
     signal(SIGINT,ctrlc); //Escuchamos si se pulsa ctrlc
 
     if(jobs_list[0].pid > 0){ //Hay un proceso en ejecución
-        if(!strcmp(jobs_list[0].cmd,mi_shell)){
+        
+        if(!(strcmp(jobs_list[0].cmd,mi_shell) == 0)){
             
-            if(kill(jobs_list[0].pid,SIGTERM)){ //mandamos a acabar dicho proceso
+            if(kill(jobs_list[0].pid,SIGTERM)==0){ //mandamos a acabar dicho proceso
                 #if DEBUGN4
                     printf("Se ha enviado señal SIGTERM\n");
                 #endif
             }else{
-                perror("kill");
+                perror("kill: ");
                 exit(-1);
             } 
             
@@ -335,15 +289,62 @@ void ctrlc(int signum){
 
         }else{
             #if DEBUGN4
-                printf(ROJO_T"No se puede cerrar el proceso ya que es el minishell");
+                printf(ROJO_T "No se puede cerrar el proceso ya que es el minishell\n");
+                fflush(stdout);
+
             #endif
         }
     }else{
             #if DEBUGN4
-                printf(ROJO_T"No hay ningún proceso en foreground");
+                printf(ROJO_T"No hay ningún proceso en foreground\n");
+                fflush(stdout);
             #endif
     } 
 }
+
+
+int execute_line(char *line){
+    char **args = malloc(ARGS_SIZE);
+    parse_args(args, line);
+    int internal = check_internal(args);  
+
+    if(!internal){ //si no es interno 
+        pid_t pid;
+        pid = fork(); //Creamos un hijo
+        if(pid > 0){ //PROCESO PADRE
+            signal(SIGINT, ctrlc);//Asociar el manejador ctrlc a la señal SIGINT.
+            signal(SIGCHLD,reaper);//ASociamos el manejador reaper a la señal SIGCHILD
+
+            //Actualizamos datos del job_list[0]
+            jobs_list[0].status = 'E';
+            jobs_list[0].pid = pid;
+            strcpy(jobs_list[0].cmd,line);
+            printf("Comando en ejecucion: %s\n", jobs_list[0].cmd);
+            printf("MI SHELL: %s\n", mi_shell);
+
+
+	        printf("PID Del hijo dentro de padre: %i  \n", jobs_list[0].pid);
+
+            while(jobs_list[0].pid > 0){//Esperando al hijo
+                pause();
+            }
+            
+        }else{ //hijo (Correcto de momento)
+            signal(SIGCHLD,SIG_DFL); //Accion por defecto
+            signal(SIGINT, SIG_IGN);//Ingnoramos SIGINT
+            if (execvp(args[0], args)){//ejecutar el comando externo solicitado. 
+                perror("La ejecución del comando ha fallado\n");
+                exit(-1);
+            }
+        }
+    }
+    free(args); 
+}
+
+
+
+
+
 
 
 
@@ -355,23 +356,22 @@ void main(int argc, char *argv[]){
     
     //Primer proceso
     struct info_job *proceso = malloc(sizeof(struct info_job));
-    memset(proceso->cmd,'\0',sizeof(char));
+    memset(proceso->cmd,'\0',sizeof(char)*COMMAND_LINE_SIZE);
     proceso->pid = 0;
     proceso->status= 'N';
-
     //Inicializamos el job_list 
     jobs_list[0] = *proceso;
-    
     //Recogemos el nombre
     strcpy(mi_shell, argv[0]);
-    int i = 0;
+
+    /*int i = 0;
     while (mi_shell[i])
     {
         i++;
     }
     //añadimos un salto de linea al final
     mi_shell[i] = '\n';
-    
+    */
     
     //Añadimos escuchas a las señales SIGCHLD Y SIGINT
     signal(SIGCHLD,reaper);

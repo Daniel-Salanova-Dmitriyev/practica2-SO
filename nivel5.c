@@ -26,7 +26,8 @@
 #define DEBUGN1 0
 #define DEBUGN2 0
 #define DEBUGN3 0
-#define DEBUGN4 1
+#define DEBUGN4 0
+#define DEBUGN5 1
 
 
 char const PROMPT = '$';
@@ -34,6 +35,7 @@ int chdir(const char *path);
 long getcwd(char *buf, unsigned long size);
 char *read_line(char *line);
 int execute_line(char *line);
+int n_pids = 0; 
 
 
 struct info_job {
@@ -136,7 +138,9 @@ int internal_source(char **args)
 }
 
 int internal_jobs(char **args){
-     printf("Comando que nos muestra los procesos resultantes de nuestro terminal ");
+     for(int i = 1; i<n_pids;i++){
+        printf("[%i] PID: %i     CMD: %s    STATUS: %c \n", i,jobs_list[i].pid, jobs_list[i].cmd, jobs_list[i].status);
+     }
 }
 
 int internal_fg(char **args){
@@ -154,6 +158,16 @@ void imprimir_prompt(){
 
     printf(ROJO_T "%s:" AZUL_T "%s" BLANCO_T "%c ", usuario, direccion, PROMPT); 
    
+}
+
+int jobs_list_find(pid_t pid){
+    for(int i = 0; i<n_pids; i++){
+        if(jobs_list[i].pid == pid){
+            return i;
+        }
+    }
+    //Nunca llegará a este punto
+    return -1;
 }
 
 
@@ -302,6 +316,47 @@ void ctrlc(int signum){
     } 
 }
 
+void ctrlz(int signum){
+    signal(SIGTSTP,ctrlz); // Asignamos a SIGTSTP El manejador ctrlz
+    if(jobs_list[0].pid > 0){ // Hay un proceso en ejecución
+        if(!(strcmp(jobs_list[0].cmd,mi_shell) == 0)){//Sino es el minishell
+        
+        //Detenemos el proceso
+            if(kill(jobs_list[0].pid,SIGSTOP)==0){ //mandamos el stop dicho proceso
+            
+
+                //Lo añadimos al final
+                jobs_list_add(jobs_list[0].pid,'D',jobs_list[0].cmd);
+                
+                //Actualizamos los valores del primer proceso 
+                jobs_list[0].pid = 0;
+                jobs_list[0].status = 'N';
+                strcpy(jobs_list[0].cmd, "\0");
+
+                #if DEBUGN5
+                    printf("Se ha enviado señal SIGSTOP\n");
+                #endif
+                printf("\n");
+                fflush(stdout);
+            }else{
+                perror("kill: ");
+                exit(-1);
+            } 
+
+        }else{
+            #if DEBUGN5
+                printf(ROJO_T "No se puede cerrar el proceso ya que es el minishell\n");
+                fflush(stdout);
+
+            #endif
+        }
+    }else{
+            #if DEBUGN4
+                printf(ROJO_T"No hay ningún proceso en foreground\n");
+                fflush(stdout);
+            #endif
+    } 
+}
 
 int execute_line(char *line){
     char **args = malloc(ARGS_SIZE);

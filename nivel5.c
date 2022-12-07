@@ -262,24 +262,48 @@ void reaper(int signum)
     
     signal(SIGCHLD, reaper);
     int status;
-    pid_t ended;
-    while ((ended = waitpid(-1, &status, WNOHANG)) > 0)
+    pid_t pid;
+    while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {
-        printf("Poceso hijo dentro de reaper: %i \n",ended);
-        if (ended == jobs_list[0].pid){
+        printf("Poceso hijo dentro de reaper: %i \n",pid);
+        if (pid == jobs_list[0].pid){
             
             //Actualizamos los valores del primer proceso 
             jobs_list[0].pid = 0;
             jobs_list[0].status = 'F';
             strcpy(jobs_list[0].cmd, "\0");
-            printf("El pid del proceso terminado %d y el estatus es %d\n", ended, status);
+            printf("El pid del proceso terminado %d y el estatus es %d\n", pid, status);
 
             
         } else{     
-            printf("El proceso no esta en primer plano\n");
-        
+            int i = jobs_list_find(pid);
+            fprintf(stderr, "El proceso %d ha terminado\n", jobs_list[i].pid);
+            jobs_list_remove(i);
         }
     }
+}
+//elimina un trabajo del array de trabajos 
+int jobs_list_remove(int pos) {
+    jobs_list[pos].pid = jobs_list[n_pids - 1].pid;
+    jobs_list[pos].status = jobs_list[n_pids - 1].status;
+    strcpy(jobs_list[pos].cmd,jobs_list[n_pids -1].cmd);
+    n_pids--;
+    return n_pids;
+}
+//añade un trabajo al array de trabajos
+int jobs_list_add(pid_t pid, char status, char *cmd) {
+	//si el numero no es maximo
+    if (n_pids < N_JOBS) {
+        //añades el pid, status y cmd
+        jobs_list[n_pids].pid = pid;
+        jobs_list[n_pids].status = status;
+        strcpy(jobs_list[n_pids].cmd,cmd);
+        n_pids++;//Actualiza el numero de trabajos
+    } else
+    {
+        fprintf(stderr, "Numero máximo de señales alcanzado");
+    }
+    return n_pids;
 }
 
 void ctrlc(int signum){

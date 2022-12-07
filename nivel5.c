@@ -422,16 +422,11 @@ int execute_line(char *line){
 }
 
 int is_background(char **args){
-    int ele = sizeof(args)/sizeof(args[0]);
-    printf("Número de elementos : %i\n", ele);
-    for(int i = 0; args[i];i++){
+    for(int i = 0; args[i] != NULL ;i++){
         if(strcmp("&",args[i]) == 0){
-            
-            (* args)[i] = NULL;
-            printf("Datos de posicion: %s\n", args[2]);
+            args[i] = NULL;
             return 1;
         }
-        printf("%s\n", args[i]);
     }
     return 0;
 }

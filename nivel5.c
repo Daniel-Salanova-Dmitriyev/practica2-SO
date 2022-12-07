@@ -387,6 +387,7 @@ int execute_line(char *line){
     parse_args(args, line);
     int internal = check_internal(args);  
     int background = is_background(args);
+
     if(!internal){ //si no es interno 
         pid_t pid;
         pid = fork(); //Creamos un hijo
@@ -421,11 +422,16 @@ int execute_line(char *line){
 }
 
 int is_background(char **args){
-    for(int i = 0; i<sizeof(args)/sizeof(args[0]);i++){
+    int ele = sizeof(args)/sizeof(args[0]);
+    printf("Número de elementos : %i\n", ele);
+    for(int i = 0; args[i];i++){
         if(strcmp("&",args[i]) == 0){
-            *args[i] = NULL;
+            
+            (* args)[i] = NULL;
+            printf("Datos de posicion: %s\n", args[2]);
             return 1;
         }
+        printf("%s\n", args[i]);
     }
     return 0;
 }

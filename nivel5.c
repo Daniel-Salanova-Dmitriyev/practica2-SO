@@ -386,68 +386,69 @@ int execute_line(char *line){
     char **args = malloc(ARGS_SIZE);
     parse_args(args, line);
     int internal = check_internal(args);  
-    
+    int background = is_background(args);
     if(!internal){ //si no es interno 
         pid_t pid;
         pid = fork(); //Creamos un hijo
         if(pid > 0){ //padre
-            if(is_background(**line)==0){//comando foreground
+            signal(SIGINT, ctrlc);//Asociar el manejador ctrlc a la señal SIGINT.
+            signal(SIGCHLD,reaper);//ASociamos el manejador reaper a la señal SIGCHILD
+            signal(SIGTSTP, ctrlz);//Asociar el manejador ctrlz a la señal SIGTSTP.
+            if(background==0){//comando foreground 
                 jobs_list[0].status = 'E';
                 jobs_list[0].pid = pid;
                 strcpy(jobs_list[0].cmd,line);
-            
-                signal(SIGINT, ctrlc);//Asociar el manejador ctrlc a la señal SIGINT.
+               
                 while(jobs_list[0].pid  > 0){//Esperando al hijo
                     pause();
                 }
-            
-                #if DEBUGN3
-                    printf(GRIS_T "Proceso hijo: %d\n", pid);
-                    printf(GRIS_T"Proceso padre: %d\n", getpid());
-                    printf(GRIS_T"Terminal: %s , y comando: %s\n", mi_shell,line);
-                #endif
-                pid_t estado_hijo;
-                wait(&estado_hijo); //Esperamos la finalización del proceso
-                #if DEBUGN3
-                    printf(GRIS_T"Estado de finalizacion del hijo: %i\n",estado_hijo);
-                #endif
-                //Devolvemos los valores de la primera entrada al por defecto establecido
-                jobs_list[0].status = 'N';
-                jobs_list[0].pid = 0;
-                memset(jobs_list[0].cmd,'\0',sizeof(char));
-            }else if(is_background(**line)==1){//comando background
-                jobs_list_add(jobs_list[0].pid, jobs_list[0].status, *jobs_list[0].cmd);
+                
+            }else{ //comando background
+                jobs_list_add(jobs_list[0].pid, jobs_list[0].status, jobs_list[0].cmd);
             }   
         }else{ //hijo
-            execvp(args[0],args); //Ejecutamos el comando
-            if (execvp(args[0], args) != NULL){//ejecutar el comando externo solicitado. 
-            perror("La ejecución del comando ha fallado");
-            exit(-1);
-            }
-       	    kill(fork(args), SIGCHLD);//Asociar la acción por defecto a SIGCHLD.
-       	    signal(SIGINT, SIG_IGN);//Ingnoramos SIGINT
+            signal(SIGCHLD,SIG_DFL); //Accion por defecto
+            signal(SIGINT, SIG_IGN);//Ingnoramos SIGINT
             signal(SIGTSTP, SIG_IGN);//Ingnoramos SIGTSTP 
+            if (execvp(args[0], args)){//ejecutar el comando externo solicitado. 
+                perror("La ejecución del comando ha fallado\n");
+                exit(-1);
+            }
+            
         }
     }
     free(args); 
 }
 
 int is_background(char **args){
-    char *sep = "\t\n\r ";
-    char *token = strtok(args,sep);
+    for(int i = 0; i<sizeof(args)/sizeof(args[0]);i++){
+        if(strcmp("&",args[i]) == 0){
+            *args[i] = NULL;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/*
+//char *sep = "\t\n\r ";
+    //char *token = strtok(args,sep);
     int i = 0;
     while (token != NULL){         
         if (token[i] == '&'){
             args[i] = NULL;//Sustituir el token & por NULL
-            execvp(args[0],args);
+            //execvp(args[0],args);
             return 1;//token & encontrado
         }
-        args[i] = token;
-        i++;
-        token = strtok(NULL, sep);
+        //args[i] = token;
+        //i++;
+        //token = strtok(NULL, sep);
     }  
     return 0;////token & no encontrado
-}
+
+
+
+*/
 
 
 /**

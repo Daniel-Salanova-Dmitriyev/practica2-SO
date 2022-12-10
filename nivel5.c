@@ -35,7 +35,7 @@ int chdir(const char *path);
 long getcwd(char *buf, unsigned long size);
 char *read_line(char *line);
 int execute_line(char *line);
-int n_pids = 0; 
+int n_pids = 1; 
 
 
 struct info_job {
@@ -141,6 +141,7 @@ int internal_jobs(char **args){
      for(int i = 1; i<n_pids;i++){
         printf("[%i] PID: %i     CMD: %s    STATUS: %c \n", i,jobs_list[i].pid, jobs_list[i].cmd, jobs_list[i].status);
      }
+
 }
 
 int internal_fg(char **args){
@@ -238,7 +239,7 @@ int parse_args(char **args, char *line){
     char *sep = "\t\n\r ";
     char *token = strtok(line,sep);
     int i = 0;
-
+    
     while (token != NULL)
     {
         
@@ -265,20 +266,23 @@ void reaper(int signum)
     pid_t pid;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {
-        printf("Poceso hijo dentro de reaper: %i \n",pid);
+       
         if (pid == jobs_list[0].pid){
             
             //Actualizamos los valores del primer proceso 
             jobs_list[0].pid = 0;
-            jobs_list[0].status = 'F';
+            jobs_list[0].status = 'N';
             strcpy(jobs_list[0].cmd, "\0");
             printf("El pid del proceso terminado %d y el estatus es %d\n", pid, status);
 
             
         } else{     
             int i = jobs_list_find(pid);
-            fprintf(stderr, "El proceso %d ha terminado\n", jobs_list[i].pid);
-            jobs_list_remove(i);
+            int pidEliminado = jobs_list[i].pid;
+            jobs_list_remove(i); 
+            printf("\n");
+            printf("El proceso %d ha terminado\n", pidEliminado);
+            
         }
     }
 }
@@ -294,10 +298,11 @@ int jobs_list_remove(int pos) {
 int jobs_list_add(pid_t pid, char status, char *cmd) {
 	//si el numero no es maximo
     if (n_pids < N_JOBS) {
-        //añades el pid, status y cmd
-        jobs_list[n_pids].pid = pid;
-        jobs_list[n_pids].status = status;
+        
         strcpy(jobs_list[n_pids].cmd,cmd);
+        jobs_list[n_pids].pid = pid;
+        jobs_list[n_pids].status= status;
+
         n_pids++;//Actualiza el numero de trabajos
     } else
     {
@@ -383,11 +388,13 @@ void ctrlz(int signum){
 }
 
 int execute_line(char *line){
-    char **args = malloc(ARGS_SIZE);
+    char **args = malloc(COMMAND_LINE_SIZE);
+    char lineaComando[COMMAND_LINE_SIZE];
+    strcpy(lineaComando,line);
     parse_args(args, line);
     int internal = check_internal(args);  
     int background = is_background(args);
-
+   
     if(!internal){ //si no es interno 
         pid_t pid;
         pid = fork(); //Creamos un hijo
@@ -405,7 +412,7 @@ int execute_line(char *line){
                 }
                 
             }else{ //comando background
-                jobs_list_add(jobs_list[0].pid, jobs_list[0].status, jobs_list[0].cmd);
+                jobs_list_add(pid, 'E', lineaComando);
             }   
         }else{ //hijo
             signal(SIGCHLD,SIG_DFL); //Accion por defecto
@@ -418,20 +425,18 @@ int execute_line(char *line){
             
         }
     }
+    
     free(args); 
 }
 
 int is_background(char **args){
-    int ele = sizeof(args)/sizeof(args[0]);
-    printf("Número de elementos : %i\n", ele);
-    for(int i = 0; args[i];i++){
-        if(strcmp("&",args[i]) == 0){
-            
-            (* args)[i] = NULL;
-            printf("Datos de posicion: %s\n", args[2]);
-            return 1;
-        }
-        printf("%s\n", args[i]);
+   int i = 0;
+    while (args[i]){
+        i++;
+    }
+    if (*args[i - 1] == '&'){
+        args[i - 1] = NULL;
+        return 1;
     }
     return 0;
 }
@@ -456,6 +461,17 @@ int is_background(char **args){
 
 */
 
+/*
+
+ struct info_job *proceso = malloc(sizeof(struct info_job));
+    memset(proceso->cmd,'\0',sizeof(char)*COMMAND_LINE_SIZE);
+    proceso->pid = 0;
+    proceso->status= 'N';
+
+    //Inicializamos el job_list 
+    jobs_list[0] = *proceso;
+
+*/
 
 /**
  * MAIN PROVISIONAL
@@ -463,12 +479,10 @@ int is_background(char **args){
 void main(int argc, char *argv[]){
     
     //Primer proceso
-    struct info_job *proceso = malloc(sizeof(struct info_job));
-    memset(proceso->cmd,'\0',sizeof(char)*COMMAND_LINE_SIZE);
-    proceso->pid = 0;
-    proceso->status= 'N';
-    //Inicializamos el job_list 
-    jobs_list[0] = *proceso;
+   memset(jobs_list[0].cmd,'\0',sizeof(char)*COMMAND_LINE_SIZE);
+   jobs_list[0].pid = 0;
+   jobs_list[0].status = 'N';
+   
     //Recogemos el nombre
     strcpy(mi_shell, argv[0]);
 

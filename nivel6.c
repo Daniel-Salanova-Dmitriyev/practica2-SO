@@ -8,8 +8,6 @@
 #include <fcntl.h> 
 #include <unistd.h>
 
-#define LINE_PROMPT_SIZE 60
-
 #define COMMAND_LINE_SIZE 1024
 #define ARGS_SIZE 64
 #define N_JOBS 64
@@ -35,10 +33,9 @@
 
 char const PROMPT = '$';
 int chdir(const char *path); 
-long getcwd(char *buf, unsigned long size);
 char *read_line(char *line);
 int execute_line(char *line);
-int n_pids = 0; 
+int n_pids = 1; 
 
 
 struct info_job {
@@ -151,7 +148,34 @@ int internal_fg(char **args){
 }
 
 int internal_bg(char **args){
-     printf("Comando que reanuda un proceso que esta suspendido en segundo plano");
+    if(args[1]){ //Existe el indice
+        int ind = atoi(args[1]); //Recogemos el indice de la tabla jobs_list
+        if(ind > n_pids || n_pids <= 1 ){
+            printf(ROJO_T "Error!! No existe trabajo \n");
+            return 0;
+
+        }else{
+            if(jobs_list[ind].status == 'E'){
+                printf(ROJO_T "Error!! Trabajo en segundo plano \n");
+            }else{ //Proceso detenido
+                
+                //Cambiamos su estado
+                jobs_list[ind].status = 'E';
+
+                char *cmd = jobs_list[ind].cmd;
+                printf("Comando a reanudar: %s", cmd);
+                cmd[strlen(cmd)] = ' ';
+                cmd[strlen(cmd)+1] = '&';
+
+                strcpy(jobs_list[ind].cmd,cmd);
+                kill(jobs_list[ind].pid,SIGCONT);
+                printf(GRIS_T"Proceso %i, Estado: %c, CMD: %s ", jobs_list[ind].pid,jobs_list[ind].status, jobs_list[ind].cmd);
+                return 1;
+            }
+        }
+    }else{
+        printf(ROJO_T "Comando incorrecto!! \n");
+    }
 }
 
 
@@ -268,20 +292,23 @@ void reaper(int signum)
     pid_t pid;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {
-        printf("Poceso hijo dentro de reaper: %i \n",pid);
+       
         if (pid == jobs_list[0].pid){
             
             //Actualizamos los valores del primer proceso 
             jobs_list[0].pid = 0;
-            jobs_list[0].status = 'F';
+            jobs_list[0].status = 'N';
             strcpy(jobs_list[0].cmd, "\0");
             printf("El pid del proceso terminado %d y el estatus es %d\n", pid, status);
 
             
         } else{     
             int i = jobs_list_find(pid);
-            fprintf(stderr, "El proceso %d ha terminado\n", jobs_list[i].pid);
-            jobs_list_remove(i);
+            int pidEliminado = jobs_list[i].pid;
+            jobs_list_remove(i); 
+            printf("\n");
+            printf("El proceso %d ha terminado\n", pidEliminado);
+            
         }
     }
 }
@@ -297,10 +324,11 @@ int jobs_list_remove(int pos) {
 int jobs_list_add(pid_t pid, char status, char *cmd) {
 	//si el numero no es maximo
     if (n_pids < N_JOBS) {
-        //añades el pid, status y cmd
-        jobs_list[n_pids].pid = pid;
-        jobs_list[n_pids].status = status;
+        
         strcpy(jobs_list[n_pids].cmd,cmd);
+        jobs_list[n_pids].pid = pid;
+        jobs_list[n_pids].status= status;
+
         n_pids++;//Actualiza el numero de trabajos
     } else
     {
@@ -349,7 +377,7 @@ void ctrlz(int signum){
         if(!(strcmp(jobs_list[0].cmd,mi_shell) == 0)){//Sino es el minishell
         
         //Detenemos el proceso
-            if(kill(jobs_list[0].pid,SIGSTOP)==0){ //mandamos el stop dicho proceso
+            kill(jobs_list[0].pid,SIGSTOP);
             
 
                 //Lo añadimos al final
@@ -365,10 +393,7 @@ void ctrlz(int signum){
                 #endif
                 printf("\n");
                 fflush(stdout);
-            }else{
-                perror("kill: ");
-                exit(-1);
-            } 
+            
 
         }else{
             #if DEBUGN5
@@ -387,6 +412,8 @@ void ctrlz(int signum){
 
 int execute_line(char *line){
     char **args = malloc(ARGS_SIZE);
+    char lineaComando[COMMAND_LINE_SIZE];
+    strcpy(lineaComando,line);
     parse_args(args, line);
     int internal = check_internal(args);  
     int background = is_background(args);
@@ -400,14 +427,14 @@ int execute_line(char *line){
             if(background==0){//comando foreground 
                 jobs_list[0].status = 'E';
                 jobs_list[0].pid = pid;
-                strcpy(jobs_list[0].cmd,line);
+                strcpy(jobs_list[0].cmd,lineaComando);
                
                 while(jobs_list[0].pid  > 0){//Esperando al hijo
                     pause();
                 }
                 
             }else{ //comando background
-                jobs_list_add(jobs_list[0].pid, jobs_list[0].status, jobs_list[0].cmd);
+                jobs_list_add(pid, 'E', lineaComando);
             }   
         }else{ //hijo
             signal(SIGCHLD,SIG_DFL); //Accion por defecto
@@ -442,11 +469,15 @@ int is_output_redirection (char **args){
 }
 
 int is_background(char **args){
-    for(int i = 0; args[i] != NULL ;i++){
-        if(strcmp("&",args[i]) == 0){
-            args[i] = NULL;//Ponemos el token a null
-            return 1;
-        }
+
+   int i = 0;
+    while (args[i]){
+        i++;
+    }
+    if (*args[i - 1] == '&'){
+        args[i - 1] = NULL;
+        return 1;
+
     }
     return 0;
 }
@@ -475,12 +506,10 @@ int is_background(char **args){
 void main(int argc, char *argv[]){
     
     //Primer proceso
-    struct info_job *proceso = malloc(sizeof(struct info_job));
-    memset(proceso->cmd,'\0',sizeof(char)*COMMAND_LINE_SIZE);
-    proceso->pid = 0;
-    proceso->status= 'N';
-    //Inicializamos el job_list 
-    jobs_list[0] = *proceso;
+    memset(jobs_list[0].cmd,'\0',sizeof(char)*COMMAND_LINE_SIZE);
+    jobs_list[0].pid = 0;
+    jobs_list[0].status = 'N';
+   
     //Recogemos el nombre
     strcpy(mi_shell, argv[0]);
 

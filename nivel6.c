@@ -143,8 +143,45 @@ int internal_jobs(char **args){
      }
 }
 
+//Funcion que cambia un trabajo al foregraund y espera hasta acabar
 int internal_fg(char **args){
-     printf("Comando que mueve un proceso en segundo plano al primer plano");
+   
+    if (!args[1]) {
+        fprintf(stderr, "fg: Sintaxis incorrecta\n");
+        return 0;
+    } else {
+        int pos = decod(args[1]);
+        //errores
+        if (pos == 0 || pos>n_pids) {
+            fprintf(stderr, "fg: Error no existe este trabajo\n");
+            return -1;
+        //sino
+        } else {
+            //comprobamos el estado
+            if (jobs_list[pos].status == 'D') {
+                //enviar la señal SIGCONT
+                kill(jobs_list[pos].pid,SIGCONT);
+                printf("Se ha enviado la señal SIGCONT al proceso\n");
+                //eliminar el &
+                for (int i=0;i<COMMAND_LINE_SIZE;i++) {
+                    if (jobs_list[pos].cmd[i] == '&') {
+                        jobs_list[pos].cmd[i] = ' ';
+                    }
+                }
+                //copiar los datos a jobs_list[0]
+                jobs_list[0].pid = jobs_list[pos].pid;
+                jobs_list[0].status = jobs_list[pos].status;
+                strcpy(jobs_list[0].cmd,jobs_list[pos].cmd);
+                //eliminarlo de la lista
+                jobs_list_remove(pos);
+                printf("Commandline: %s\n", jobs_list[0].cmd);
+                //pausa
+                while (jobs_list[0].pid) {
+                    pause();
+                }
+            }
+        }
+    }
 }
 
 int internal_bg(char **args){

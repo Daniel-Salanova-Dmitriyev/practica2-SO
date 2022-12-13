@@ -450,42 +450,46 @@ void ctrlz(int signum){
 int execute_line(char *line){
     char **args = malloc(ARGS_SIZE);
     char lineaComando[COMMAND_LINE_SIZE];
-    strcpy(lineaComando,line);
-    parse_args(args, line);
-    int internal = check_internal(args);  
-    int background = is_background(args);
-    if(!internal){ //si no es interno 
-        pid_t pid;
-        pid = fork(); //Creamos un hijo
-        if(pid > 0){ //padre
-            signal(SIGINT, ctrlc);//Asociar el manejador ctrlc a la señal SIGINT.
-            signal(SIGCHLD,reaper);//ASociamos el manejador reaper a la señal SIGCHILD
-            signal(SIGTSTP, ctrlz);//Asociar el manejador ctrlz a la señal SIGTSTP.
-            if(background==0){//comando foreground 
-                jobs_list[0].status = 'E';
-                jobs_list[0].pid = pid;
-                strcpy(jobs_list[0].cmd,lineaComando);
-               
-                while(jobs_list[0].pid  > 0){//Esperando al hijo
-                    pause();
+    if(args){
+        strcpy(lineaComando,line);
+        parse_args(args, line);         
+        int background = is_background(args);
+        if (args[0]){
+            int internal = check_internal(args);
+            if(!internal){ //si no es interno 
+                pid_t pid;
+                pid = fork(); //Creamos un hijo
+                if(pid > 0){ //padre
+                    signal(SIGINT, ctrlc);//Asociar el manejador ctrlc a la señal SIGINT.
+                    signal(SIGCHLD,reaper);//ASociamos el manejador reaper a la señal SIGCHILD
+                    signal(SIGTSTP, ctrlz);//Asociar el manejador ctrlz a la señal SIGTSTP.
+                    if(!background){//comando foreground 
+                        jobs_list[0].status = 'E';
+                        jobs_list[0].pid = pid;
+                        strcpy(jobs_list[0].cmd,lineaComando);
+                    
+                        while(jobs_list[0].pid  > 0){//Esperando al hijo
+                            pause();
+                        }
+                        
+                    }else{ //comando background
+                        jobs_list_add(pid, 'E', lineaComando);
+                    }   
+                }else{ //hijo
+                    signal(SIGCHLD,SIG_DFL); //Accion por defecto
+                    signal(SIGINT, SIG_IGN);//Ingnoramos SIGINT
+                    signal(SIGTSTP, SIG_IGN);//Ingnoramos SIGTSTP 
+                    is_output_redirection (args);
+                    if (execvp(args[0], args)){//ejecutar el comando externo solicitado. 
+                        perror("La ejecución del comando ha fallado\n");
+                        exit(-1);
+                    }
+                    
                 }
-                
-            }else{ //comando background
-                jobs_list_add(pid, 'E', lineaComando);
-            }   
-        }else{ //hijo
-            signal(SIGCHLD,SIG_DFL); //Accion por defecto
-            signal(SIGINT, SIG_IGN);//Ingnoramos SIGINT
-            signal(SIGTSTP, SIG_IGN);//Ingnoramos SIGTSTP 
-            is_output_redirection (args);
-            if (execvp(args[0], args)){//ejecutar el comando externo solicitado. 
-                perror("La ejecución del comando ha fallado\n");
-                exit(-1);
             }
-            
         }
     }
-    free(args); 
+    free(args);
 }
 
 int is_output_redirection (char **args){

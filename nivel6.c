@@ -32,9 +32,27 @@
 
 
 char const PROMPT = '$';
-int chdir(const char *path); 
 char *read_line(char *line);
 int execute_line(char *line);
+int parse_args(char **args, char *line);
+int check_internal(char **args);
+int internal_cd(char **args);
+int internal_export(char **args);
+int internal_source(char **args);
+int internal_jobs(char **args);
+int internal_fg(char **args);
+int internal_bg(char **args);
+
+void reaper(int signum);
+void ctrlc(int signum);
+void ctrlz(int signum);
+
+int is_background(char **args);
+int is_output_redirection(char **args);
+
+int jobs_list_add(pid_t pid, char status, char *cmd);
+int jobs_list_find(pid_t pid);
+int jobs_list_remove(int pos);
 int n_pids = 1; 
 
 
@@ -46,6 +64,7 @@ struct info_job {
 
 static struct info_job jobs_list [N_JOBS];
 static char mi_shell[COMMAND_LINE_SIZE];
+static int active_jobs = 1;
 
 
 int internal_cd(char **args){
@@ -143,14 +162,12 @@ int internal_jobs(char **args){
      }
 }
 
-//Funcion que cambia un trabajo al foregraund y espera hasta acabar
-int internal_fg(char **args){
-   
+int internal_fg(char **args){     
     if (!args[1]) {
         fprintf(stderr, "fg: Sintaxis incorrecta\n");
         return 0;
     } else {
-        int pos = decod(args[1]);
+        int pos = (int) *(args[1]) - 48;
         //errores
         if (pos == 0 || pos>n_pids) {
             fprintf(stderr, "fg: Error no existe este trabajo\n");
@@ -243,10 +260,12 @@ char *read_line(char *line){
     char *linea;
   
     linea = fgets(line,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
-    if(linea == NULL && feof(stdin)){ //SI
+    if(linea == NULL){ //SI
         printf("\n \r");
+        if(feof(stdin)){
         printf(GRIS_T "Se va ha cerrar la terminal\n");
         exit(0);
+        }
     }
 
     if(linea != NULL){
@@ -510,15 +529,11 @@ int is_output_redirection (char **args){
 }
 
 int is_background(char **args){
-
-   int i = 0;
-    while (args[i]){
-        i++;
-    }
-    if (*args[i - 1] == '&'){
-        args[i - 1] = NULL;
-        return 1;
-
+    for(int i = 0; args[i] != NULL ;i++){
+        if(strcmp("&",args[i]) == 0){
+            args[i] = NULL;
+            return 1;
+        }
     }
     return 0;
 }
@@ -573,6 +588,5 @@ void main(int argc, char *argv[]){
         if(read_line(line)){
             execute_line(line);
         }
-    }
-    
+    }    
 }

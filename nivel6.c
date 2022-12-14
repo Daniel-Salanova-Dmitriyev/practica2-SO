@@ -35,6 +35,25 @@ char const PROMPT = '$';
 int chdir(const char *path); 
 char *read_line(char *line);
 int execute_line(char *line);
+int parse_args(char **args, char *line);
+int check_internal(char **args);
+int internal_cd(char **args);
+int internal_export(char **args);
+int internal_source(char **args);
+int internal_jobs(char **args);
+int internal_fg(char **args);
+int internal_bg(char **args);
+
+void reaper(int signum);
+void ctrlc(int signum);
+void ctrlz(int signum);
+
+int is_background(char **args);
+int is_output_redirection(char **args);
+
+int jobs_list_add(pid_t pid, char status, char *cmd);
+int jobs_list_find(pid_t pid);
+int jobs_list_remove(int pos);
 int n_pids = 1; 
 
 
@@ -143,9 +162,6 @@ int internal_jobs(char **args){
      }
 }
 
-int internal_fg(char **args){
-     printf("Comando que mueve un proceso en segundo plano al primer plano");
-}
 
 int internal_bg(char **args){
     if(args[1]){ //Existe el indice
@@ -163,13 +179,13 @@ int internal_bg(char **args){
                 jobs_list[ind].status = 'E';
 
                 char *cmd = jobs_list[ind].cmd;
-                printf("Comando a reanudar: %s", cmd);
-                cmd[strlen(cmd)] = ' ';
-                cmd[strlen(cmd)+1] = '&';
+                printf(GRIS_T"Comando a reanudar: %s\n", cmd);
+                strcat(cmd, " &");
+                strcpy(jobs_list[ind].cmd,cmd); //LInea con el &
 
-                strcpy(jobs_list[ind].cmd,cmd);
-                kill(jobs_list[ind].pid,SIGCONT);
-                printf(GRIS_T"Proceso %i, Estado: %c, CMD: %s ", jobs_list[ind].pid,jobs_list[ind].status, jobs_list[ind].cmd);
+
+                kill(jobs_list[ind].pid,SIGCONT); //ENviamos al proceso a continuar ejecutandose
+                printf(GRIS_T"Proceso %i, Estado: %c, CMD: %s \n", jobs_list[ind].pid,jobs_list[ind].status, jobs_list[ind].cmd);
                 return 1;
             }
         }
@@ -178,13 +194,108 @@ int internal_bg(char **args){
     }
 }
 
+int internal_fg(char **args){     
+    if (!args[1]) {
+        fprintf(stderr, "fg: Sintaxis incorrecta\n");
+        return 0;
+    } else {
+        int pos = atoi(args[1]);
+        //errores
+        if (pos == 0 || pos>n_pids) {
+            fprintf(stderr, "fg: Error no existe este trabajo\n");
+            return -1;
+        //sino
+        } else {
+            //comprobamos el estado
+            if (jobs_list[pos].status == 'D') {
+                //enviar la señal SIGCONT
+                kill(jobs_list[pos].pid,SIGCONT);
+                printf("Se ha enviado la señal SIGCONT al proceso\n");
+               
+            }
+
+                //eliminar el &
+                for (int i=0;i<COMMAND_LINE_SIZE;i++) {
+                    if (jobs_list[pos].cmd[i] == '&') {
+                        jobs_list[pos].cmd[i] = ' ';
+                    }
+                }
+                jobs_list[pos].status = 'E'; //Cambiamos su estado
+
+                //copiar los datos a jobs_list[0]
+                jobs_list[0].pid = jobs_list[pos].pid;
+                jobs_list[0].status = jobs_list[pos].status;
+                strcpy(jobs_list[0].cmd,jobs_list[pos].cmd);
+
+                //eliminarlo de la lista
+                jobs_list_remove(pos);
+                printf("Commandline: %s\n", jobs_list[0].cmd);
+                
+                //Esperamos a que termine el proceso
+                while (jobs_list[0].pid) {
+                    pause();
+                }
+                
+        }
+    }
+    
+}
+
+
+
+char *replaceWord(const char *cadena, const char *cadenaAntigua, const char *nuevaCadena)
+{
+    char *result;
+    int i, cnt = 0;
+    int newWlen = strlen(nuevaCadena);
+    int oldWlen = strlen(cadenaAntigua);
+
+    // Contando el número de veces palabra antigua que sale en el String
+    for (i = 0; cadena[i] != '\0'; i++)
+    {
+        if (strstr(&cadena[i], cadenaAntigua) == &cadena[i])
+        {
+            cnt++;
+            // Saltar al índice después de la palabra antigua.
+            i += oldWlen - 1;
+        }
+    }
+
+    // Reserva de espacio suficiente para la nueva cadena
+    if ((result = malloc(i + cnt * (newWlen - oldWlen) + 1)))
+    {
+        i = 0;
+        while (*cadena)
+        {
+            // Comparar la subcadena con el resultado
+            if (strstr(cadena, cadenaAntigua) == cadena)
+            {
+                strcpy(&result[i], nuevaCadena);
+                i += newWlen;
+                cadena += oldWlen;
+            }
+            else
+            {
+                result[i++] = *cadena++;
+            }
+        }
+
+        result[i] = '\0';
+    }
+    else
+    {
+        perror("Error");
+    }
+
+    return result;
+}
 
 void imprimir_prompt(){
     char *usuario = getenv("USER");
     char *direccion = getenv("PWD");
 
     printf(ROJO_T "%s:" AZUL_T "%s" BLANCO_T "%c ", usuario, direccion, PROMPT); 
-   
+    fflush(stdout);
 }
 
 int jobs_list_find(pid_t pid){
@@ -200,26 +311,21 @@ int jobs_list_find(pid_t pid){
 
 char *read_line(char *line){
     imprimir_prompt();
-    int n = COMMAND_LINE_SIZE;
-
     fflush(stdout);
-    char *linea;
-  
-    linea = fgets(line,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
+    char *linea = fgets(line,COMMAND_LINE_SIZE,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
     if(linea == NULL && feof(stdin)){ //SI
         printf("\n \r");
         printf(GRIS_T "Se va ha cerrar la terminal\n");
         exit(0);
     }
 
-    if(linea != NULL){
+     if(linea != NULL){
         //Colocamos un \0 al final de la linea
         int longitud = strlen(linea);
         linea[longitud-1] = '\0'; //Ponemos a null la \n
     }
     return linea;
 }
-
 int check_internal(char **args){
     int retorno;
     retorno = strcmp(args[0],"cd");//internal_cd() 
@@ -261,24 +367,36 @@ int check_internal(char **args){
 }
 
 
-int parse_args(char **args, char *line){
-    char *sep = "\t\n\r ";
-    char *token = strtok(line,sep);
+int parse_args(char **args, char *line)
+{   
+    char lineaux[COMMAND_LINE_SIZE];
+    strcpy(lineaux, line);  // Dejamos line sin modificar con el comando entero
     int i = 0;
+    char *token = strtok(lineaux, " \n\r\t");
 
-    while (token != NULL)
-    {
-        
-        if (token[0] == '#')
-        {
-            args[i] = NULL;
-        }
+    while (token != NULL) {
+
         args[i] = token;
+
+        
+
+        // Si no es un comentario lo añadimos como argumento
+        if (strncmp(args[i],"#",1) == 0) { 
+
+            break;   
+        }
+
         i++;
-        token = strtok(NULL, sep);
+        // Ponemos NULL para no sobreescribir
+        token = strtok(NULL, " \n\r\t");
     }
-  
-    return i;
+
+    // Null al final, ya que no habrá nada más que trocear
+    args[i] =  0; 
+    // Le quitamos el salto de línea a line
+    strtok(line, "\n\r"); 
+
+    return i;    
 }
 
 
@@ -298,7 +416,7 @@ void reaper(int signum)
             //Actualizamos los valores del primer proceso 
             jobs_list[0].pid = 0;
             jobs_list[0].status = 'N';
-            strcpy(jobs_list[0].cmd, "\0");
+            memset(jobs_list[0].cmd, '\0', sizeof(jobs_list[0].cmd));
             printf("El pid del proceso terminado %d y el estatus es %d\n", pid, status);
 
             
@@ -386,7 +504,7 @@ void ctrlz(int signum){
                 //Actualizamos los valores del primer proceso 
                 jobs_list[0].pid = 0;
                 jobs_list[0].status = 'N';
-                strcpy(jobs_list[0].cmd, "\0");
+                 memset(jobs_list[0].cmd, '\0', sizeof(jobs_list[0].cmd));
 
                 #if DEBUGN5
                     printf("Se ha enviado señal SIGSTOP\n");
@@ -411,13 +529,17 @@ void ctrlz(int signum){
 }
 
 int execute_line(char *line){
+    
     char **args = malloc(ARGS_SIZE);
     char lineaComando[COMMAND_LINE_SIZE];
-    strcpy(lineaComando,line);
+    
+    strcpy(lineaComando,line); 
     parse_args(args, line);
-    int internal = check_internal(args);  
-    int background = is_background(args);
-    if(!internal){ //si no es interno 
+   
+    if(args[0]){
+        int internal = check_internal(args);  
+        int background = is_background(args);
+        if(!internal){ //si no es interno 
         pid_t pid;
         pid = fork(); //Creamos un hijo
         if(pid > 0){ //padre
@@ -448,7 +570,10 @@ int execute_line(char *line){
             
         }
     }
+    }
+    memset(line, '\0', COMMAND_LINE_SIZE);
     free(args); 
+    return EXIT_SUCCESS;
 }
 
 int is_output_redirection (char **args){
@@ -499,6 +624,24 @@ int is_background(char **args){
     return 0;////token & no encontrado
 */
 
+void characterEraser(char *args, char caracter)
+{
+    int index = 0;
+    int new_index = 0;
+
+    while (args[index])
+    {
+        if (args[index] != caracter)
+        {
+            args[new_index] = args[index];
+            new_index++;
+        }
+
+        index++;
+    }
+
+    args[new_index] = '\0';
+}
 
 /**
  * MAIN PROVISIONAL
@@ -513,23 +656,15 @@ void main(int argc, char *argv[]){
     //Recogemos el nombre
     strcpy(mi_shell, argv[0]);
 
-    /*int i = 0;
-    while (mi_shell[i])
-    {
-        i++;
-    }
-    //añadimos un salto de linea al final
-    mi_shell[i] = '\n';
-    */
-    
     //Añadimos escuchas a las señales SIGCHLD Y SIGINT
     signal(SIGCHLD,reaper);
     signal(SIGINT,ctrlc);
     signal (SIGTSTP, ctrlz);
 
-    char line[COMMAND_LINE_SIZE];
+    char *line = (char *)malloc(sizeof(char) * COMMAND_LINE_SIZE);
     while(1){
         if(read_line(line)){
+            
             execute_line(line);
         }
     }

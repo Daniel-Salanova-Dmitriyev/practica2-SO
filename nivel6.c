@@ -78,6 +78,15 @@ int internal_cd(char **args){
 
         //Actualizamos el prompt PWD->dirección actual
         setenv("PWD", dir,1);
+    }else{
+        chdir(getenv("HOME")); //Cambiamos de dirección
+        //A modo de test
+        char *dir = getenv("HOME");
+        getcwd(dir, COMMAND_LINE_SIZE);
+        printf(GRIS_T "DIreccion actual: %s \n", dir);
+
+        //Actualizamos el prompt PWD->dirección actual
+        setenv("PWD", dir,1);
     }
 
      return EXIT_SUCCESS;
@@ -201,7 +210,7 @@ int internal_fg(char **args){
     } else {
         int pos = atoi(args[1]);
         //errores
-        if (pos == 0 || pos>n_pids) {
+        if (pos == 0 || pos>n_pids || n_pids <= 1) {
             fprintf(stderr, "fg: Error no existe este trabajo\n");
             return -1;
         //sino
@@ -239,55 +248,6 @@ int internal_fg(char **args){
         }
     }
     
-}
-
-
-
-char *replaceWord(const char *cadena, const char *cadenaAntigua, const char *nuevaCadena)
-{
-    char *result;
-    int i, cnt = 0;
-    int newWlen = strlen(nuevaCadena);
-    int oldWlen = strlen(cadenaAntigua);
-
-    // Contando el número de veces palabra antigua que sale en el String
-    for (i = 0; cadena[i] != '\0'; i++)
-    {
-        if (strstr(&cadena[i], cadenaAntigua) == &cadena[i])
-        {
-            cnt++;
-            // Saltar al índice después de la palabra antigua.
-            i += oldWlen - 1;
-        }
-    }
-
-    // Reserva de espacio suficiente para la nueva cadena
-    if ((result = malloc(i + cnt * (newWlen - oldWlen) + 1)))
-    {
-        i = 0;
-        while (*cadena)
-        {
-            // Comparar la subcadena con el resultado
-            if (strstr(cadena, cadenaAntigua) == cadena)
-            {
-                strcpy(&result[i], nuevaCadena);
-                i += newWlen;
-                cadena += oldWlen;
-            }
-            else
-            {
-                result[i++] = *cadena++;
-            }
-        }
-
-        result[i] = '\0';
-    }
-    else
-    {
-        perror("Error");
-    }
-
-    return result;
 }
 
 void imprimir_prompt(){
@@ -420,13 +380,13 @@ void reaper(int signum)
             printf("El pid del proceso terminado %d y el estatus es %d\n", pid, status);
 
             
-        } else{     
+        } else{
             int i = jobs_list_find(pid);
             int pidEliminado = jobs_list[i].pid;
             jobs_list_remove(i); 
             printf("\n");
-            printf("El proceso %d ha terminado\n", pidEliminado);
-            
+            printf("El proceso %d ha terminado\n", pidEliminado);   
+            imprimir_prompt();         
         }
     }
 }
@@ -624,25 +584,6 @@ int is_background(char **args){
     return 0;////token & no encontrado
 */
 
-void characterEraser(char *args, char caracter)
-{
-    int index = 0;
-    int new_index = 0;
-
-    while (args[index])
-    {
-        if (args[index] != caracter)
-        {
-            args[new_index] = args[index];
-            new_index++;
-        }
-
-        index++;
-    }
-
-    args[new_index] = '\0';
-}
-
 /**
  * MAIN PROVISIONAL
 */
@@ -667,6 +608,5 @@ void main(int argc, char *argv[]){
             
             execute_line(line);
         }
-    }
-    
+    }    
 }

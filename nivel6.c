@@ -67,12 +67,75 @@ static struct info_job jobs_list [N_JOBS];
 static char mi_shell[COMMAND_LINE_SIZE];
 
 
+char *eliminarCaracter(char *linea, char caracter){
+    int index = 0;
+    int new_index = 0;
+
+    while (linea[index])
+    {
+        if (linea[index] != caracter)
+        {
+            linea[new_index] = linea[index];
+            new_index++;
+        }
+
+        index++;
+    }
+
+    linea[new_index] = '\0';
+    return linea;
+}
+
 int internal_cd(char **args){
-    if(args[1] != NULL){
-        chdir(args[1]); //Cambiamos de dirección
+    if(args[1] != NULL){ //Si tenemos 1 argumento
         
-        //A modo de test
-        char *dir = malloc(COMMAND_LINE_SIZE);
+        char *ruta; //Dirección a desplazarnos
+        
+        char *linea =  malloc(sizeof(char) * COMMAND_LINE_SIZE);
+        for(int i = 0; args[i];i++){
+            strcat(linea, " ");
+            strcat(linea, args[i]);
+        }
+        //Código ASCII para comillas->34, comilla->39, barra->92
+        if(args[1][0] == 34){ //CASO COMILLAS
+            ruta = strchr(linea, 34);
+            printf("Ruta: %s\n", ruta);   
+            ruta = eliminarCaracter(ruta,34);
+            printf("Ruta: %s\n", ruta);   
+        }else if (args[1][0] == 39){ //CASO COMILLA
+            ruta = strchr(linea, 39);
+            ruta = eliminarCaracter(ruta,39);
+            printf("Ruta: %s\n", ruta);
+        }else if (args[1][strlen(args[1])-1] == 92){ //CASO BARRA
+            ruta = strchr(linea, args[1][0]);
+            ruta = eliminarCaracter(ruta,92);
+            printf("Ruta: %s\n", ruta);
+        }else{
+            ruta = args[1];
+        }
+        
+       if( chdir(ruta) != 0){   //Cambiamos de dirección
+            printf(ROJO_T"No existe la direccion\n");
+       }else{
+             char *dir = malloc(COMMAND_LINE_SIZE);
+        getcwd(dir, COMMAND_LINE_SIZE);
+        printf(GRIS_T "DIreccion actual: %s \n", dir);
+
+        //Actualizamos el prompt PWD->dirección actual
+        setenv("PWD", dir,1);
+        free(dir);
+       }
+
+        
+        free(linea);
+
+
+
+    }else{ //SI no tenemos argumento
+
+        chdir(getenv("HOME")); //Cambiamos de dirección
+    
+        char *dir = getenv("HOME");
         getcwd(dir, COMMAND_LINE_SIZE);
         printf(GRIS_T "DIreccion actual: %s \n", dir);
 
@@ -85,7 +148,6 @@ int internal_cd(char **args){
 
 int internal_export(char **args){
    
-    printf("MI export!!\n");
     //Función que separa en tokens el argumento NOMBRE=VALOR
     //Inicializamos las diferentes variables a utilizar
      char *separacion = "=";
@@ -201,7 +263,7 @@ int internal_fg(char **args){
     } else {
         int pos = atoi(args[1]);
         //errores
-        if (pos == 0 || pos>n_pids) {
+        if (pos == 0 || pos>n_pids || n_pids <= 1) {
             fprintf(stderr, "fg: Error no existe este trabajo\n");
             return -1;
         //sino
@@ -239,55 +301,6 @@ int internal_fg(char **args){
         }
     }
     
-}
-
-
-
-char *replaceWord(const char *cadena, const char *cadenaAntigua, const char *nuevaCadena)
-{
-    char *result;
-    int i, cnt = 0;
-    int newWlen = strlen(nuevaCadena);
-    int oldWlen = strlen(cadenaAntigua);
-
-    // Contando el número de veces palabra antigua que sale en el String
-    for (i = 0; cadena[i] != '\0'; i++)
-    {
-        if (strstr(&cadena[i], cadenaAntigua) == &cadena[i])
-        {
-            cnt++;
-            // Saltar al índice después de la palabra antigua.
-            i += oldWlen - 1;
-        }
-    }
-
-    // Reserva de espacio suficiente para la nueva cadena
-    if ((result = malloc(i + cnt * (newWlen - oldWlen) + 1)))
-    {
-        i = 0;
-        while (*cadena)
-        {
-            // Comparar la subcadena con el resultado
-            if (strstr(cadena, cadenaAntigua) == cadena)
-            {
-                strcpy(&result[i], nuevaCadena);
-                i += newWlen;
-                cadena += oldWlen;
-            }
-            else
-            {
-                result[i++] = *cadena++;
-            }
-        }
-
-        result[i] = '\0';
-    }
-    else
-    {
-        perror("Error");
-    }
-
-    return result;
 }
 
 void imprimir_prompt(){
@@ -420,13 +433,13 @@ void reaper(int signum)
             printf("El pid del proceso terminado %d y el estatus es %d\n", pid, status);
 
             
-        } else{     
+        } else{
             int i = jobs_list_find(pid);
             int pidEliminado = jobs_list[i].pid;
             jobs_list_remove(i); 
             printf("\n");
-            printf("El proceso %d ha terminado\n", pidEliminado);
-            
+            printf("El proceso %d ha terminado\n", pidEliminado);   
+            imprimir_prompt();         
         }
     }
 }
@@ -624,25 +637,6 @@ int is_background(char **args){
     return 0;////token & no encontrado
 */
 
-void characterEraser(char *args, char caracter)
-{
-    int index = 0;
-    int new_index = 0;
-
-    while (args[index])
-    {
-        if (args[index] != caracter)
-        {
-            args[new_index] = args[index];
-            new_index++;
-        }
-
-        index++;
-    }
-
-    args[new_index] = '\0';
-}
-
 /**
  * MAIN PROVISIONAL
 */
@@ -667,6 +661,5 @@ void main(int argc, char *argv[]){
             
             execute_line(line);
         }
-    }
-    
+    }    
 }

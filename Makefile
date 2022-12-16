@@ -11,8 +11,8 @@ OBJS=$(SOURCES:.c=.o)
  
 all: $(OBJS) $(PROGRAMS)
  
-#$(PROGRAMS): $(LIBRARIES) $(INCLUDES)
-#	$(CC) $(LDFLAGS) $(LIBRARIES) $@.o -o $@
+$(PROGRAMS): $(LIBRARIES) $(INCLUDES)
+	$(CC) $(LDFLAGS) $(LIBRARIES) $@.o -o $@
  
 nivel1: nivel1.o
 	$(CC) $@.o -o $@ $(LIBRARIES)
@@ -20,20 +20,20 @@ nivel1: nivel1.o
 nivel2: nivel2.o
 	$(CC) $@.o -o $@ $(LIBRARIES)
 
-#nivel3: nivel3.o
-#	$(CC) $@.o -o $@ $(LIBRARIES)
+nivel3: nivel3.o
+	$(CC) $@.o -o $@ $(LIBRARIES)
 	
-#nivel4: nivel4.o
-#	$(CC) $@.o -o $@ $(LIBRARIES)
+nivel4: nivel4.o
+	$(CC) $@.o -o $@ $(LIBRARIES)
 
-#nivel5: nivel5.o
-#	$(CC) $@.o -o $@ $(LIBRARIES)
+nivel5: nivel5.o
+	$(CC) $@.o -o $@ $(LIBRARIES)
 
-#nivel6: nivel6.o
-#	$(CC) $@.o -o $@ $(LIBRARIES)
+nivel6: nivel6.o
+	$(CC) $@.o -o $@ $(LIBRARIES)
  
-#my_shell: my_shell.o
-#	$(CC) $@.o -o $@ $(LDFLAGS) $(LIBRARIES)
+my_shell: my_shell.o
+	$(CC) $@.o -o $@ $(LDFLAGS) $(LIBRARIES)
  
 %.o: %.c $(INCLUDES)
 	$(CC) $(CFLAGS) -o $@ -c $<

@@ -715,8 +715,7 @@ void main(int argc, char *argv[]){
     }
 
     while(1){
-        if(read_line(line)){
-            
+        if(read_line(line)){            
             execute_line(line);
         }
     }    

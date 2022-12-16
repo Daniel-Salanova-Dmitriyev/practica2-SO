@@ -1,4 +1,3 @@
-#define _POSIX_C_SOURCE 200112L
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,12 +17,30 @@
 #define CYAN_T "\x1b[36m"
 #define BLANCO_T "\x1b[97m"
 #define NEGRITA "\x1b[1m"
-#define DEBUGN1 1
+#define DEBUGN1 0
+#define DEBUGN2 0
+#define DEBUGN3 0
+#define DEBUGN4 0
+#define DEBUGN5 0
+#define DEBUGN6 1
 
-char const PROMPT = '$';
 
+char const PROMPT = '$'; 
+char *read_line(char *line);
+int execute_line(char *line);
+int parse_args(char **args, char *line);
+int check_internal(char **args);
+int internal_cd(char **args);
+int internal_export(char **args);
+int internal_source(char **args);
+int internal_jobs(char **args);
+int internal_fg(char **args);
+int internal_bg(char **args);
+int n_pids = 1; 
 
-
+/**
+ * Función que permite la navegación en los directorios
+*/
 int internal_cd(char **args){
     #if DEBUGN1
         printf("Comando que nos permitirá cambiar de directorio");
@@ -31,6 +48,9 @@ int internal_cd(char **args){
     return 1;
 }
 
+/**
+ * Función que cambia el valor de la variables de entorno
+*/
 int internal_export(char **args){
     #if DEBUGN1
         printf("Comando que define una variable de entorno");
@@ -38,7 +58,9 @@ int internal_export(char **args){
     return 1;
 }
 
-int internal_source(char **args){
+//implementacion de la funcion internal source
+int internal_source(char **args)
+{
     #if DEBUGN1
         printf("Comando que hace que un proceso se ejecute sin crear un hijo");
     #endif
@@ -52,13 +74,9 @@ int internal_jobs(char **args){
     return 1;
 }
 
-int internal_fg(char **args){
-    #if DEBUGN1
-        printf("Comando que mueve un proceso en segundo plano al primer plano");
-    #endif
-    return 1;
-}
-
+/**
+ * Función que pasa a segundo plano un proceso detenido
+*/
 int internal_bg(char **args){
     #if DEBUGN1
         printf("Comando que reanuda un proceso que esta suspendido en segundo plano");
@@ -66,40 +84,50 @@ int internal_bg(char **args){
     return 1;
 }
 
+/**
+ * Función que manda al primer plano procesos detenidos o en segundo plano
+*/
+int internal_fg(char **args){     
+    #if DEBUGN1
+        printf("Comando que mueve un proceso en segundo plano al primer plano");
+    #endif
+    return 1;
+}
 
 void imprimir_prompt(){
     char *usuario = getenv("USER");
     char *direccion = getenv("PWD");
 
-    printf(ROJO_T "%s:" AZUL_T "%s" BLANCO_T "%c ", usuario, direccion, PROMPT);    
+    printf(ROJO_T "%s:" AZUL_T "%s" BLANCO_T "%c ", usuario, direccion, PROMPT); 
+    fflush(stdout);
 }
 
-
+/**
+ * Método que lee la linea que se escribe en el prompt
+*/
 char *read_line(char *line){
-    imprimir_prompt();
-    int n = COMMAND_LINE_SIZE;
+    imprimir_prompt(); //Imprimimos el prompt  
+    fflush(stdout); //Forzamos el vaciodo del buffer de salida
 
-    
-    char *linea;
-  
-    linea = fgets(line,n,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
-    fflush(stdout);
-    if(linea == NULL && feof(stdin)){ //SI
+    char *linea = fgets(line,COMMAND_LINE_SIZE,stdin); //LEEMOS UNA LINEA DE LA CONSOLA
+    if(linea == NULL && feof(stdin)){
         printf("\n \r");
         printf(GRIS_T "Se va ha cerrar la terminal\n");
         exit(0);
     }
 
-    if(linea != NULL){
+     if(linea != NULL){
         //Colocamos un \0 al final de la linea
         int longitud = strlen(linea);
         linea[longitud-1] = '\0'; //Ponemos a null la \n
     }
+
     return linea;
 }
 
-
-
+/**
+ * Función que comprobará si un comando escrito es interno o externo
+*/
 int check_internal(char **args){
     int retorno;
     retorno = strcmp(args[0],"cd");//internal_cd() 
@@ -140,51 +168,72 @@ int check_internal(char **args){
     return 0;
 }
 
-
-int parse_args(char **args, char *line){
-    char *sep = "\t\n\r ";
-    //char *sep = " ";
-    //*args = strtok(line, sep);
-    char *token = strtok(line,sep);
+/**
+ * Función que se encargará de dividir en argumentos una linea
+*/
+int parse_args(char **args, char *line)
+{   
+    char aux[COMMAND_LINE_SIZE];
+    strcpy(aux, line);  
     int i = 0;
+    char *token = strtok(aux, " \n\r\t");
 
-    while (token != NULL)
-    {
-        
-        if (token[0] == '#')
-        {
-            args[i] = NULL;
-        }
+    while (token != NULL) {
         args[i] = token;
+        // Mientras no sea un comentario lo añadimos al array
+        if (strncmp(args[i],"#",1) == 0) { 
+            break;   
+        }
         i++;
-        token = strtok(NULL, sep);
+        // Ponemos NULL para no sobreescribir
+        token = strtok(NULL, " \n\r\t");
     }
-  
-    return i;
+
+    // Agregamos un null al final de la lista de argumentos
+    args[i] =  0; 
+
+    //Imprimimos cuales son los tokens y cuantos hay
+    #if DEBUGN1 
+        int j = 0;
+        while(args[j]){
+            printf(GRIS_T"Token -> %s",args[j]);
+            j++;
+        }  
+        printf(GRIS_T"Numero tokens -> %i",j);
+    #endif
+
+    // Le quitamos el salto de línea a line
+    strtok(line, "\n\r"); 
+    return i;    
 }
-
-
-int execute_line(char *line){
-    char **args = malloc(ARGS_SIZE);
-    parse_args(args, line);
-   
-    check_internal(args);
-   
-    free(args); //LIberamos el espacio alojado por los argumentos
-
-}
-
 
 /**
- * MAIN PROVISIONAL
+ * Función que se encargará de que se ejcuten tanto comandos internos como externos
 */
-void main(){
-    char line[COMMAND_LINE_SIZE];
+int execute_line(char *line){    
+    char **args = malloc(ARGS_SIZE);
+    char lineaComando[COMMAND_LINE_SIZE];
+    
+    strcpy(lineaComando,line); 
+    parse_args(args, line);
+
+    memset(line, '\0', COMMAND_LINE_SIZE);
+    free(args); 
+    return EXIT_SUCCESS;
+}
+
+/**
+ * Funcion main
+*/
+void main(int argc, char *argv[]){   
+    char *line = (char *)malloc(sizeof(char) * COMMAND_LINE_SIZE);
+    if(!line){ //En caso de que no se haya asignado bien memoria
+        perror("Error: ");
+    }
+
     while(1){
-        if(read_line(line)){
+        if(read_line(line)){            
             execute_line(line);
         }
-         free(line); //liberamos el espacio alojado por la linea
-    }
-    
+    }    
 }

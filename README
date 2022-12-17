@@ -1,0 +1,12 @@
+# Mini Shell
+
+### Observaciones
+
+No sabemos porque pero cuando acaba un proceso en segundo plano, o es eliminado con un kill -9, no se imprime la linea del prompt. Esto solo sucede en 2 de los 3 ordenadores con los que trabajamos, por lo que no sabemos porque sucede esto. Cabe aclarar que 2 personas del equipo tienen el mismo entorno de desarrollo.
+
+Además no hemos conseguido que se ejecute el shell dentro del shell, pedia permisos aunque estuvieran concedidos con chmod. Además si se observaba el status del proceso correspondiente daba 65280.
+
+//Creadores
+//Arkadiy Kosyuk
+//Alexander Cordero Gómez
+//Daniel Salanova Dmitriyev

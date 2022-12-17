@@ -1,3 +1,8 @@
+//Creadores
+//Arkadiy Kosyuk
+//Alexander Cordero Gómez
+//Daniel Salanova Dmitriyev
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,12 +29,22 @@
 #define DEBUGN1 0
 #define DEBUGN2 0
 #define DEBUGN3 0
-#define DEBUGN4 0
+#define DEBUGN4 1
 #define DEBUGN5 0
-#define DEBUGN6 1
+#define DEBUGN6 0
 
 
 char const PROMPT = '$'; 
+int chdir(const char *path);
+char *getcwd(char *buffer,int maxlen);
+pid_t fork(void);
+pid_t getpid(void);
+int execvp(const char *file, char *const argv[]);
+int pause(void);
+int setenv(const char *name, const char *value, int overwrite);
+int kill(pid_t pid, int sig);
+
+
 char *read_line(char *line);
 int execute_line(char *line);
 int parse_args(char **args, char *line);
@@ -85,6 +100,9 @@ int internal_cd(char **args){
         char *ruta; //Dirección a desplazarnos
         
         char *linea =  malloc(sizeof(char) * COMMAND_LINE_SIZE);
+        if(!linea){
+            perror("Error: ");
+        }
         for(int i = 0; args[i];i++){
             strcat(linea, " ");
             strcat(linea, args[i]);
@@ -107,6 +125,9 @@ int internal_cd(char **args){
             printf(ROJO_T"No existe la direccion\n");
         }else{
             char *dir = malloc(COMMAND_LINE_SIZE);
+            if(!dir){
+                perror("Error: ");
+            }
             getcwd(dir, COMMAND_LINE_SIZE);
 
 
@@ -217,11 +238,12 @@ int internal_source(char **args)
         fprintf(stderr, ROJO_T"source: Sintaxis incorrecta\n");
     }
     free(linea);
+    return EXIT_SUCCESS;
 }
 
 int internal_jobs(char **args){
     #if DEBUGN1
-        printf("Comando que nos muestra los procesos resultantes de nuestro terminal ");
+        printf("Comando que nos muestra los procesos resultantes de nuestro terminal\n");
     #endif
     return 1;
 }
@@ -231,7 +253,7 @@ int internal_jobs(char **args){
 */
 int internal_bg(char **args){
     #if DEBUGN1
-        printf("Comando que reanuda un proceso que esta suspendido en segundo plano");
+        printf("Comando que reanuda un proceso que esta suspendido en segundo plano\n");
     #endif
     return 1;
 }
@@ -241,7 +263,7 @@ int internal_bg(char **args){
 */
 int internal_fg(char **args){     
     #if DEBUGN1
-        printf("Comando que mueve un proceso en segundo plano al primer plano");
+        printf("Comando que mueve un proceso en segundo plano al primer plano\n");
     #endif
     return 1;
 }
@@ -348,10 +370,10 @@ int parse_args(char **args, char *line)
     #if DEBUGN1 
         int j = 0;
         while(args[j]){
-            printf(GRIS_T"Token -> %s",args[j]);
+            printf(GRIS_T"Token -> %s\n",args[j]);
             j++;
         }  
-        printf(GRIS_T"Numero tokens -> %i",j);
+        printf(GRIS_T"Numero tokens -> %i\n",j);
     #endif
 
     // Le quitamos el salto de línea a line
@@ -369,13 +391,14 @@ void reaper(int signum)
     pid_t pid;
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
     {                         
-        //Actualizamos los valores del primer proceso 
-        jobs_list[0].pid = 0;
-        jobs_list[0].status = 'N';
-        memset(jobs_list[0].cmd, '\0', sizeof(jobs_list[0].cmd));
-        #if DEBUGN5
-            printf(GRIS_T "El pid del proceso terminado %d y el estatus es %d\n", pid, status);
-        #endif                
+        if(pid == jobs_list[0].pid){
+            //Actualizamos los valores del primer proceso 
+            jobs_list[0].pid = 0;
+            jobs_list[0].status = 'N';
+            memset(jobs_list[0].cmd, '\0', sizeof(jobs_list[0].cmd));
+    
+            printf(GRIS_T "El pid del proceso terminado %d y el estatus es %d\n", pid, status);              
+        }   
     }
 }
 
@@ -399,17 +422,14 @@ void ctrlc(int signum){
             fflush(stdout);
 
         }else{
-            #if DEBUGN4
-                printf(ROJO_T "No se puede cerrar el proceso ya que es el minishell\n");
-                fflush(stdout);
-
-            #endif
+            
+            printf(ROJO_T "No se puede cerrar el proceso ya que es el minishell\n");
+            fflush(stdout);
         }
     }else{
-            #if DEBUGN4
-                printf(ROJO_T"No hay ningún proceso en foreground\n");
-                fflush(stdout);
-            #endif
+        
+        printf(ROJO_T"No hay ningún proceso en foreground\n");
+        fflush(stdout);
     } 
 }
 
@@ -419,6 +439,9 @@ void ctrlc(int signum){
 int execute_line(char *line){
     
     char **args = malloc(ARGS_SIZE);
+    if(!args){
+        perror("Error: ");
+    }
     char lineaComando[COMMAND_LINE_SIZE];
     
     strcpy(lineaComando,line); 
@@ -464,7 +487,7 @@ int execute_line(char *line){
 /**
  * Funcion main
 */
-void main(int argc, char *argv[]){
+int main(int argc, char *argv[]){
     
     //Primer proceso
     memset(jobs_list[0].cmd,'\0',sizeof(char)*COMMAND_LINE_SIZE);
@@ -489,4 +512,5 @@ void main(int argc, char *argv[]){
             execute_line(line);
         }
     }    
+    return EXIT_SUCCESS;
 }

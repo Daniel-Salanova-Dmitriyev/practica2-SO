@@ -8,7 +8,10 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <sys/types.h>
+#include <sys/types.h> 
+#include <sys/stat.h> 
+#include <fcntl.h> 
+#include <unistd.h>
 
 #define COMMAND_LINE_SIZE 1024
 #define ARGS_SIZE 64
@@ -30,18 +33,12 @@
 #define DEBUGN2 0
 #define DEBUGN3 0
 #define DEBUGN4 0
-#define DEBUGN5 1
+#define DEBUGN5 0
 #define DEBUGN6 0
 
 
-char const PROMPT = '$'; 
-int chdir(const char *path);
-char *getcwd(char *buffer,int maxlen);
-pid_t fork(void);
-pid_t getpid(void);
-int execvp(const char *file, char *const argv[]);
-int pause(void);
-
+char const PROMPT = '$';
+int chdir(const char *path); 
 char *read_line(char *line);
 int execute_line(char *line);
 int parse_args(char **args, char *line);
@@ -60,6 +57,7 @@ void ctrlc(int signum);
 void ctrlz(int signum);
 
 int is_background(char **args);
+int is_output_redirection(char **args);
 
 int jobs_list_add(pid_t pid, char status, char *cmd);
 int jobs_list_find(pid_t pid);
@@ -106,8 +104,9 @@ int internal_cd(char **args){
         
         char *linea =  malloc(sizeof(char) * COMMAND_LINE_SIZE);
         if(!linea){
-            perror("Error: ");
+            perror("Error");
         }
+
         for(int i = 0; args[i];i++){
             strcat(linea, " ");
             strcat(linea, args[i]);
@@ -257,20 +256,91 @@ int internal_jobs(char **args){
  * Función que pasa a segundo plano un proceso detenido
 */
 int internal_bg(char **args){
-    #if DEBUGN1
-        printf("Comando que reanuda un proceso que esta suspendido en segundo plano");
-    #endif
-    return 1;
+    if(args[1]){ //Existe el indice
+        int ind = atoi(args[1]); //Recogemos el indice de la tabla jobs_list
+        if(ind+1 > n_pids || ind < 1 ){
+            printf(ROJO_T "Error!! No existe trabajo \n");
+            return EXIT_FAILURE;
+
+        }else{
+            if(jobs_list[ind].status == 'E'){
+                printf(ROJO_T "Error!! Trabajo en segundo plano \n");
+                return EXIT_FAILURE;
+            }else{ //Proceso detenido
+                
+                //Cambiamos su estado
+                jobs_list[ind].status = 'E';
+
+                char *cmd = jobs_list[ind].cmd;
+                #if DEBUGN5
+                    printf(GRIS_T"Comando a reanudar: %s\n", cmd);
+                #endif
+                strcat(cmd, " &");
+                strcpy(jobs_list[ind].cmd,cmd); //LInea con el &
+
+
+                kill(jobs_list[ind].pid,SIGCONT); //ENviamos al proceso a continuar ejecutandose
+                printf(GRIS_T"Proceso %i, Estado: %c, CMD: %s \n", jobs_list[ind].pid,jobs_list[ind].status, jobs_list[ind].cmd);
+                return EXIT_SUCCESS;
+            }
+        }
+    }else{
+        printf(ROJO_T "Comando incorrecto!! \n");
+        return EXIT_FAILURE;
+    }
 }
 
 /**
  * Función que manda al primer plano procesos detenidos o en segundo plano
 */
 int internal_fg(char **args){     
-    #if DEBUGN1
-        printf("Comando que mueve un proceso en segundo plano al primer plano");
-    #endif
-    return 1;
+    if (!args[1]) {
+        fprintf(stderr, ROJO_T"fg: Sintaxis incorrecta\n");
+        return 0;
+    } else {
+        int pos = atoi(args[1]);
+        //errores
+        if (pos+1 > n_pids || pos < 1) {
+            fprintf(stderr, ROJO_T"fg: Error no existe este trabajo\n");
+            return 0;
+        //sino
+        } else {
+            //comprobamos el estado
+            if (jobs_list[pos].status == 'D') {
+                //enviar la señal SIGCONT
+                kill(jobs_list[pos].pid,SIGCONT);
+                #if DEBUGN6
+                    printf(GRIS_T "Se ha enviado la señal SIGCONT al proceso\n");
+                #endif
+            }
+
+                //eliminar el &
+                for (int i=0;i<COMMAND_LINE_SIZE;i++) {
+                    if (jobs_list[pos].cmd[i] == '&') {
+                        jobs_list[pos].cmd[i] = ' ';
+                    }
+                }
+                jobs_list[pos].status = 'E'; //Cambiamos su estado
+
+                //copiar los datos a jobs_list[0]
+                jobs_list[0].pid = jobs_list[pos].pid;
+                jobs_list[0].status = jobs_list[pos].status;
+                strcpy(jobs_list[0].cmd,jobs_list[pos].cmd);
+
+                //eliminarlo de la lista
+                jobs_list_remove(pos);
+                printf(GRIS_T "Commandline: %s\n", jobs_list[0].cmd);
+                
+                //Esperamos a que termine el proceso
+                while (jobs_list[0].pid) {
+                    pause();
+                }
+                
+                return EXIT_SUCCESS;
+                
+        }
+    }
+    
 }
 
 void imprimir_prompt(){
@@ -429,7 +499,7 @@ void reaper(int signum)
             jobs_list_remove(i); 
             printf("\n");
             printf(GRIS_T"El proceso %d ha terminado, su comando era %s y con status %i\n", pidEliminado,comandoEliminado, status);   
-            imprimir_prompt();         
+            //imprimir_prompt();         
         }
     }
 }
@@ -480,13 +550,17 @@ void ctrlc(int signum){
             fflush(stdout);
 
         }else{
-            
-            printf(ROJO_T "No se puede cerrar el proceso ya que es el minishell\n");
-            fflush(stdout);
+            #if DEBUGN4
+                printf(ROJO_T "No se puede cerrar el proceso ya que es el minishell\n");
+                fflush(stdout);
+
+            #endif
         }
     }else{
-        printf(ROJO_T"No hay ningún proceso en foreground\n");
-        fflush(stdout);
+            #if DEBUGN4
+                printf(ROJO_T"No hay ningún proceso en foreground\n");
+                fflush(stdout);
+            #endif
     } 
 }
 
@@ -507,8 +581,9 @@ void ctrlz(int signum){
                 jobs_list[0].status = 'N';
                 memset(jobs_list[0].cmd, '\0', sizeof(jobs_list[0].cmd));
 
-                printf(GRIS_T "Se ha enviado señal SIGSTOP\n");
-                
+                #if DEBUGN5
+                    printf(GRIS_T "Se ha enviado señal SIGSTOP\n");
+                #endif
                 printf("\n");
                 fflush(stdout);
             
@@ -531,7 +606,7 @@ int execute_line(char *line){
     
     char **args = malloc(ARGS_SIZE);
     if(!args){
-        perror("Error: ");
+        perror("Error");
     }
     char lineaComando[COMMAND_LINE_SIZE];
     
@@ -572,6 +647,7 @@ int execute_line(char *line){
             signal(SIGCHLD,SIG_DFL); //Accion por defecto
             signal(SIGINT, SIG_IGN);//Ingnoramos SIGINT
             signal(SIGTSTP, SIG_IGN);//Ingnoramos SIGTSTP 
+            is_output_redirection (args);
             if (execvp(args[0], args)){//ejecutar el comando externo solicitado. 
                  fprintf(stderr, ROJO_T"Error al ejecutar el comando\n");
                 exit(-1);
@@ -583,6 +659,27 @@ int execute_line(char *line){
     memset(line, '\0', COMMAND_LINE_SIZE);
     free(args); 
     return EXIT_SUCCESS;
+}
+
+
+/**
+ * Función que redirige la salida de un comando a un fichero 
+*/
+int is_output_redirection (char **args){
+    int fd;
+    for(int i = 0; args[i] != NULL ;i++){
+        if(strcmp(">",args[i]) == 0){
+            if(args[i+1] != NULL){
+                args[i] = NULL;//Ponemos el token a null
+                fd = open (args[i+1], O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);//Abrimos fichero
+                dup2(fd, 1);//El descriptor 1, de la salida estándar, pasa a ser un duplicado de fd
+                close(fd);//Cerramos fichero
+                return 1;
+                //execvp (args[2], &args[2]); 
+            }
+        }
+    }
+    return 0;
 }
 
 /**
@@ -644,8 +741,7 @@ int main(int argc, char *argv[]){
     }
 
     while(1){
-        if(read_line(line)){
-            
+        if(read_line(line)){            
             execute_line(line);
         }
     }    

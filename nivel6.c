@@ -1,3 +1,8 @@
+//Creadores
+//Arkadiy Kosyuk
+//Alexander Cordero Gómez
+//Daniel Salanova Dmitriyev
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -44,6 +49,8 @@ int internal_source(char **args);
 int internal_jobs(char **args);
 int internal_fg(char **args);
 int internal_bg(char **args);
+int setenv(const char *name, const char *value, int overwrite);
+int kill(pid_t pid, int sig);
 
 void reaper(int signum);
 void ctrlc(int signum);
@@ -96,6 +103,10 @@ int internal_cd(char **args){
         char *ruta; //Dirección a desplazarnos
         
         char *linea =  malloc(sizeof(char) * COMMAND_LINE_SIZE);
+        if(!linea){
+            perror("Error");
+        }
+
         for(int i = 0; args[i];i++){
             strcat(linea, " ");
             strcat(linea, args[i]);
@@ -118,6 +129,9 @@ int internal_cd(char **args){
             printf(ROJO_T"No existe la direccion\n");
         }else{
             char *dir = malloc(COMMAND_LINE_SIZE);
+            if(!dir){
+                perror("Error: ");
+            }
             getcwd(dir, COMMAND_LINE_SIZE);
 
 
@@ -228,12 +242,14 @@ int internal_source(char **args)
         fprintf(stderr, ROJO_T"source: Sintaxis incorrecta\n");
     }
     free(linea);
+    return EXIT_SUCCESS;
 }
 
 int internal_jobs(char **args){
-     for(int i = 1; i<n_pids;i++){
+    for(int i = 1; i<n_pids;i++){
         printf("[%i] PID: %i     CMD: %s    STATUS: %c \n", i,jobs_list[i].pid, jobs_list[i].cmd, jobs_list[i].status);
-     }
+    }
+    return EXIT_SUCCESS;
 }
 
 /**
@@ -242,31 +258,35 @@ int internal_jobs(char **args){
 int internal_bg(char **args){
     if(args[1]){ //Existe el indice
         int ind = atoi(args[1]); //Recogemos el indice de la tabla jobs_list
-        if(ind > n_pids || n_pids <= 1 ){
+        if(ind+1 > n_pids || ind < 1 ){
             printf(ROJO_T "Error!! No existe trabajo \n");
-            return 0;
+            return EXIT_FAILURE;
 
         }else{
             if(jobs_list[ind].status == 'E'){
                 printf(ROJO_T "Error!! Trabajo en segundo plano \n");
+                return EXIT_FAILURE;
             }else{ //Proceso detenido
                 
                 //Cambiamos su estado
                 jobs_list[ind].status = 'E';
 
                 char *cmd = jobs_list[ind].cmd;
-                printf(GRIS_T"Comando a reanudar: %s\n", cmd);
+                #if DEBUGN5
+                    printf(GRIS_T"Comando a reanudar: %s\n", cmd);
+                #endif
                 strcat(cmd, " &");
                 strcpy(jobs_list[ind].cmd,cmd); //LInea con el &
 
 
                 kill(jobs_list[ind].pid,SIGCONT); //ENviamos al proceso a continuar ejecutandose
                 printf(GRIS_T"Proceso %i, Estado: %c, CMD: %s \n", jobs_list[ind].pid,jobs_list[ind].status, jobs_list[ind].cmd);
-                return 1;
+                return EXIT_SUCCESS;
             }
         }
     }else{
         printf(ROJO_T "Comando incorrecto!! \n");
+        return EXIT_FAILURE;
     }
 }
 
@@ -280,17 +300,18 @@ int internal_fg(char **args){
     } else {
         int pos = atoi(args[1]);
         //errores
-        if (pos == 0 || pos>n_pids || n_pids <= 1) {
+        if (pos+1 > n_pids || pos < 1) {
             fprintf(stderr, ROJO_T"fg: Error no existe este trabajo\n");
-            return -1;
+            return 0;
         //sino
         } else {
             //comprobamos el estado
             if (jobs_list[pos].status == 'D') {
                 //enviar la señal SIGCONT
                 kill(jobs_list[pos].pid,SIGCONT);
-                printf(GRIS_T "Se ha enviado la señal SIGCONT al proceso\n");
-               
+                #if DEBUGN6
+                    printf(GRIS_T "Se ha enviado la señal SIGCONT al proceso\n");
+                #endif
             }
 
                 //eliminar el &
@@ -314,6 +335,8 @@ int internal_fg(char **args){
                 while (jobs_list[0].pid) {
                     pause();
                 }
+                
+                return EXIT_SUCCESS;
                 
         }
     }
@@ -436,10 +459,10 @@ int parse_args(char **args, char *line)
     #if DEBUGN1 
         int j = 0;
         while(args[j]){
-            printf(GRIS_T"Token -> %s",args[j]);
+            printf(GRIS_T"Token -> %s\n",args[j]);
             j++;
         }  
-        printf(GRIS_T"Numero tokens -> %i",j);
+        printf(GRIS_T"Numero tokens -> %i\n",j);
     #endif
 
     // Le quitamos el salto de línea a line
@@ -472,12 +495,11 @@ void reaper(int signum)
         } else{
             int i = jobs_list_find(pid);
             int pidEliminado = jobs_list[i].pid;
-            char statusEliminado = jobs_list[i].status;
             char *comandoEliminado = jobs_list[i].cmd;
             jobs_list_remove(i); 
             printf("\n");
             printf(GRIS_T"El proceso %d ha terminado, su comando era %s y con status %i\n", pidEliminado,comandoEliminado, status);   
-            imprimir_prompt();         
+            //imprimir_prompt();         
         }
     }
 }
@@ -559,8 +581,9 @@ void ctrlz(int signum){
                 jobs_list[0].status = 'N';
                 memset(jobs_list[0].cmd, '\0', sizeof(jobs_list[0].cmd));
 
-                printf(GRIS_T "Se ha enviado señal SIGSTOP\n");
-                
+                #if DEBUGN5
+                    printf(GRIS_T "Se ha enviado señal SIGSTOP\n");
+                #endif
                 printf("\n");
                 fflush(stdout);
             
@@ -582,6 +605,9 @@ void ctrlz(int signum){
 int execute_line(char *line){
     
     char **args = malloc(ARGS_SIZE);
+    if(!args){
+        perror("Error");
+    }
     char lineaComando[COMMAND_LINE_SIZE];
     
     strcpy(lineaComando,line); 
@@ -694,7 +720,7 @@ int is_background(char **args){
 /**
  * Funcion main
 */
-void main(int argc, char *argv[]){
+int main(int argc, char *argv[]){
     
     //Primer proceso
     memset(jobs_list[0].cmd,'\0',sizeof(char)*COMMAND_LINE_SIZE);
@@ -719,4 +745,6 @@ void main(int argc, char *argv[]){
             execute_line(line);
         }
     }    
+
+    return EXIT_SUCCESS;
 }

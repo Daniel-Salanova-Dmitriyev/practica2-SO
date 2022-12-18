@@ -427,9 +427,9 @@ void reaper(int signum)
             int pidEliminado = jobs_list[i].pid;
             char *comandoEliminado = jobs_list[i].cmd;
             jobs_list_remove(i); 
-            printf("\n");
+            //printf("\n");
             printf(GRIS_T"El proceso %d ha terminado, su comando era %s y con status %i\n", pidEliminado,comandoEliminado, status);   
-            imprimir_prompt();         
+            //imprimir_prompt();         
         }
     }
 }
@@ -507,11 +507,9 @@ void ctrlz(int signum){
                 jobs_list[0].status = 'N';
                 memset(jobs_list[0].cmd, '\0', sizeof(jobs_list[0].cmd));
 
-                printf(GRIS_T "Se ha enviado señal SIGSTOP\n");
-                
-                printf("\n");
+                printf(GRIS_T "Se ha enviado señal SIGSTOP\n");        
                 fflush(stdout);
-            
+        
 
         }else{
             

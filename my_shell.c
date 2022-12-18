@@ -34,7 +34,7 @@
 #define DEBUGN3 0
 #define DEBUGN4 0
 #define DEBUGN5 0
-#define DEBUGN6 0
+#define DEBUGN6 1
 
 
 char const PROMPT = '$';
@@ -546,7 +546,7 @@ void ctrlc(int signum){
                 exit(-1);
             } 
             
-            printf("\n");
+            printf(" \n");
             fflush(stdout);
 
         }else{
@@ -561,6 +561,8 @@ void ctrlc(int signum){
                 printf(ROJO_T"No hay ningún proceso en foreground\n");
                 fflush(stdout);
             #endif
+            printf("\n");
+            fflush(stdout);
     } 
 }
 

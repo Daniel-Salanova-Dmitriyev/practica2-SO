@@ -546,7 +546,7 @@ void ctrlc(int signum){
                 exit(-1);
             } 
             
-            printf("\n");
+            printf(" \n");
             fflush(stdout);
 
         }else{
@@ -561,6 +561,8 @@ void ctrlc(int signum){
                 printf(ROJO_T"No hay ningún proceso en foreground\n");
                 fflush(stdout);
             #endif
+            printf("\n");
+            fflush(stdout);
     } 
 }
 
